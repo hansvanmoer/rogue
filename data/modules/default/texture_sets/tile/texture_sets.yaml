@@ -1,0 +1,10 @@
+texture_sets:
+  - name: temperate_forest
+    size:
+      width: 64
+      height: 64
+    textures:
+      - name: dirt_0
+        file: dirt_0.png
+      - name: grass_0
+        file: grass_0.png

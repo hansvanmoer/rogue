@@ -1,0 +1,6 @@
+size:
+  width: 32
+  height: 32
+textures:
+  - name: knight_0
+    file: knight_0.png
