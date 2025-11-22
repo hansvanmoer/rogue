@@ -1,5 +1,6 @@
+use std::cell::RefCell;
 use log::debug;
-use sdl2::{Sdl, VideoSubsystem};
+use sdl2::{EventPump, Sdl, VideoSubsystem};
 use sdl2::render::{Canvas, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 use crate::settings::Settings;
@@ -21,11 +22,11 @@ pub struct SubSystems {
     ///
     /// The window's canvas handle
     ///
-    canvas: Canvas<Window>,
-    
+    canvas: RefCell<Canvas<Window>>,
+
     ///
     /// The texture creator
-    /// 
+    ///
     texture_creator: TextureCreator<WindowContext>,
 }
 
@@ -53,20 +54,34 @@ impl SubSystems {
         let canvas = window.into_canvas().build().map_err(|msg| Error::Sdl(format!("could not create SDL canvas {}", msg)))?;
         let texture_creator = canvas.texture_creator();
         debug!("SDL subsystems started.");
-        
+
         Ok(SubSystems {
             sdl,
             video,
-            canvas,
+            canvas: RefCell::from(canvas),
             texture_creator,
         })
+    }
+
+    ///
+    /// Constructs an event pump
+    /// 
+    pub fn event_pump(&self) -> Result<EventPump, Error> {
+        self.sdl.event_pump().map_err(|err| Error::Sdl(format!("could not start SDL {}", err)))
     }
     
     ///
     /// The texture creator
-    /// 
+    ///
     pub fn texture_creator(&self) -> &TextureCreator<WindowContext> {
         &self.texture_creator
+    }
+    
+    ///
+    /// 
+    /// 
+    pub fn present_canvas(&self) {
+        self.canvas.borrow_mut().present();
     }
 }
 

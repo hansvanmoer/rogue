@@ -17,7 +17,7 @@ use crate::validation::{non_empty_string, validate_field, validate_field_with, v
 /// A wrapper around an SDL2 texture handle
 ///
 pub struct Texture<'a> {
-    handle: sdl2::render::Texture<'a>
+    handle: sdl2::render::Texture<'a>,
 }
 
 impl<'a> Texture<'a> {
@@ -63,7 +63,7 @@ impl<'a> Texture<'a> {
     ///
     /// Loads textures from a descriptor located in the specified folder
     ///
-    pub fn from_folder_path<P: AsRef<Path>>(creator: &'a TextureCreator<WindowContext>, path: P) -> Result<ResourceMap<Texture<'a>>, Error> {
+    pub fn from_folder_path<P: AsRef<Path>>(creator: &'a TextureCreator<WindowContext>, path: P) -> Result<ResourceMap<Texture>, Error> {
         debug!("Loading textures...");
         let mut path = path.as_ref().to_path_buf();
         let mut map = ResourceMap::new();

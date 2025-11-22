@@ -1,21 +1,27 @@
 mod configuration;
 mod environment;
 mod graphics;
+mod immutable_state;
 mod localization;
-mod settings;
+mod metrics;
 mod resource;
+mod settings;
+mod system;
 mod texture;
 mod validation;
-mod metrics;
-mod immutable_state;
-mod system;
 
+use std::thread::sleep;
+use std::time::Duration;
 use log::{debug, info};
+use sdl2::event::Event;
 use crate::environment::Environment;
 use crate::immutable_state::ImmutableState;
 use crate::settings::Settings;
 use crate::system::SubSystems;
 
+///
+/// The main application entry point
+///
 fn main() {
     env_logger::init();
     info!("Starting game...");
@@ -28,8 +34,24 @@ fn main() {
     debug!("Settings: {:?}", settings);
     debug!("Settings loaded.");
 
-    let sub_systems = SubSystems::new(&settings).expect("Failed to create sub systems");
+    let mut sub_systems = SubSystems::new(&settings).expect("Failed to create sub systems");
+    let mut event_pump = sub_systems.event_pump().expect("Failed to create event pump");
     let immutable_state = ImmutableState::new(&environment, &settings, &sub_systems).expect("Failed to create immutable game state");
+
+    'main_loop: loop {
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. } => {
+                    debug!("Quit event received");
+                    break 'main_loop;
+                },
+                _ => {}
+            }
+        }
+        sub_systems.present_canvas();
+
+        sleep(Duration::from_millis(1000 ));
+    }
 
     info!("Game started.");
 }

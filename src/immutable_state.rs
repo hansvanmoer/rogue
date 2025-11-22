@@ -40,7 +40,7 @@ pub struct ImmutableState<'a> {
 impl<'a> ImmutableState<'a> {
     ///
     /// Loads all immutable resources into the state
-    /// 
+    ///
     pub fn new(environment: &Environment, settings: &Settings, sub_systems: &'a SubSystems) -> Result<ImmutableState<'a>, Error> {
         let mut path = Self::find_module_path(environment, settings.get_module_name())
             .ok_or_else(|| Error::ModuleNotFound(String::from(settings.get_module_name())))?;
@@ -65,7 +65,7 @@ impl<'a> ImmutableState<'a> {
         path.push(&descriptor.texture_sets_folder);
         let texture_sets = TextureSet::from_folder_path(sub_systems.texture_creator(), &mut path)?;
         path.pop();
-        
+
         debug!("All resources loaded.");
 
         Ok(ImmutableState {
@@ -77,7 +77,7 @@ impl<'a> ImmutableState<'a> {
     }
 
     ///
-    /// find the module path 
+    /// find the module path
     ///
     fn find_module_path(environment: &Environment, module_name: &str) -> Option<PathBuf> {
         let mut path = environment.create_data_path();
@@ -266,10 +266,10 @@ pub enum Error {
     /// And SDL error occurred
     ///
     Sdl(String),
-    
+
     ///
     /// An error occurred while loading textures
-    /// 
+    ///
     Texture(TextureError),
 
     ///
