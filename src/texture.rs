@@ -67,7 +67,7 @@ impl<'a> Texture<'a> {
         debug!("Loading textures...");
         let mut path = path.as_ref().to_path_buf();
         let mut map = ResourceMap::new();
-        Self::from_folder_part_recursive(creator, &mut path, &mut map, None)?;
+        Self::from_folder_path_recursive(creator, &mut path, &mut map, None)?;
         debug!("Loaded {} textures.", map.len());
         Ok(map)
     }
@@ -75,10 +75,10 @@ impl<'a> Texture<'a> {
     ///
     /// Recursively loads all texture from a folder and its subfolders
     ///
-    fn from_folder_part_recursive(creator: &'a TextureCreator<WindowContext>,
-                                    path: &mut PathBuf,
-                                    map: &mut ResourceMap<Texture<'a>>,
-                                    size: Option<&NonZeroDimensions2<i32>>) -> Result<(), Error> {
+    fn from_folder_path_recursive(creator: &'a TextureCreator<WindowContext>,
+                                  path: &mut PathBuf,
+                                  map: &mut ResourceMap<Texture<'a>>,
+                                  size: Option<&NonZeroDimensions2<i32>>) -> Result<(), Error> {
         debug!("Loading textures from folder {}", path.display());
         path.push("textures.yaml");
         let config: TextureFolderConfig = load_configuration(&path)?;
@@ -88,7 +88,7 @@ impl<'a> Texture<'a> {
         for folder in descriptor.folders {
             path.push(folder);
             if path.is_dir() {
-                Self::from_folder_part_recursive(creator, path, map, descriptor.size.as_ref().or(size))?;
+                Self::from_folder_path_recursive(creator, path, map, descriptor.size.as_ref().or(size))?;
                 path.pop();
             } else {
                 error!("no such folder: {}", path.display());
@@ -246,18 +246,23 @@ impl ValidateOwned for TextureSizeConfig {
 
     fn validate_owned(&self) -> Result<NonZeroDimensions2<i32>, ValidationError> {
         NonZeroDimensions2::new(self.width, self.height)
-            .ok_or_else(|| ValidationError::from_str("invalid texture size"))
+            .map_err(|_| ValidationError::from_str("invalid texture size"))
     }
 }
 
 ///
-/// A wrapper around an SDL2 texture containing multiple tiles
+/// An index type for a subtexture
+///
+pub type SubTextureIndex = usize;
+
+///
+/// A wrapper around an SDL2 texture containing multiple tile_sets
 ///
 pub struct TextureSet<'a> {
     ///
-    /// The ID's of the subtextures by name
+    /// The indexes of the subtextures by name
     ///
-    ids_by_name: HashMap<String, usize>,
+    indices_by_name: HashMap<String, usize>,
 
     ///
     /// The number of columns in the texture set
@@ -285,18 +290,19 @@ impl<'a> TextureSet<'a> {
 
         let columns = Self::calculate_columns(descriptor.textures.len());
         let mut image = RgbaImage::new(width * (columns as u32), height * (columns as u32));
-        let mut ids_by_name = HashMap::new();
+        let mut indices_by_name = HashMap::new();
         let mut row: usize = 0;
         let mut col: usize = 0;
         for texture_descriptor in &descriptor.textures {
             path.push(&texture_descriptor.file);
+            debug!("Loading subtexture {} from {}", texture_descriptor.name, path.display());
             let sub_image = ImageReader::open(&path)?.decode()?.into_rgba8();
             if sub_image.width() != width || sub_image.height() != height {
                 return Err(Error::Sdl(format!("image size does not match texture size: {}", texture_descriptor.file)));
             }
             image.sub_image((col as u32)  * width, (row as u32) * height, width, height).copy_from(&sub_image, 0, 0)?;
             path.pop();
-            ids_by_name.insert(texture_descriptor.name.clone(), row);
+            indices_by_name.insert(texture_descriptor.name.clone(), row);
             if (col + 1) == columns {
                 col = 0;
                 row += 1;
@@ -314,7 +320,7 @@ impl<'a> TextureSet<'a> {
         let handle = creator.create_texture_from_surface(surface)?;
 
         Ok(TextureSet {
-            ids_by_name,
+            indices_by_name,
             columns,
             handle,
         })
@@ -327,6 +333,13 @@ impl<'a> TextureSet<'a> {
         let mut map = ResourceMap::new();
         Self::from_folder_path_recursive(creator, path, &mut map)?;
         Ok(map)
+    }
+
+    ///
+    /// Fetches the index of the subtexture
+    ///
+    pub fn get_index(&self, name: &str) -> Result<SubTextureIndex, Error> {
+        self.indices_by_name.get(name).cloned().ok_or_else(|| Error::NotFound(name.to_string()))
     }
 
     ///
@@ -557,6 +570,11 @@ pub enum Error {
     /// A validation error occurred
     ///
     Validation(ValidationError),
+
+    ///
+    /// No subtexture was found for this name
+    ///
+    NotFound(String),
 }
 
 impl From<ConfigurationError> for Error {

@@ -3,3 +3,4 @@ version: 1.0.0
 labels_folder: labels
 textures_folder: textures
 texture_sets_folder: texture_sets
+tile_sets_folder: tile_sets

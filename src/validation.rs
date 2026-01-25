@@ -59,6 +59,28 @@ pub fn positive_integer(number: &i32) -> Result<i32, Error> {
 }
 
 ///
+/// Checks whether the input is a strictly positive floating point number
+///
+pub fn strictly_positive_f32(number: &f32) -> Result<f32, Error> {
+    if number > &0.0 {
+        Ok(*number)
+    } else {
+        Err(Error::from_string(format!("should be a strictly positive floating point number but was {}", number)))
+    }
+}
+
+///
+/// Checks whether the input is a positive floating point number
+///
+pub fn positive_f32(number: &f32) -> Result<f32, Error> {
+    if number >= &0.0 {
+        Ok(*number)
+    } else {
+        Err(Error::from_string(format!("should be a positive floating point number but was {}", number)))
+    }
+}
+
+///
 /// Checks whether the input is a nonempty string
 ///
 pub fn non_empty_string(input: &String) -> Result<String, Error> {
@@ -215,6 +237,21 @@ mod tests {
         assert_eq!(Err(Error::from_str("should be a positive integer but was -1")), result);
         let result = positive_integer(&0);
         assert_eq!(Ok(0), result);
+    }
+
+    #[test]
+    pub fn validate_positive_f32() {
+        let result = positive_f32(&-1.0);
+        assert_eq!(Err(Error::from_str("should be a positive floating point number but was -1")), result);
+        assert_eq!(Ok(0.0), positive_f32(&0.0));
+        assert_eq!(Ok(2.0), positive_f32(&2.0));
+    }
+
+    #[test]
+    pub fn validate_strictly_positive_f32() {
+        assert_eq!(Err(Error::from_str("should be a strictly positive floating point number but was -1")), strictly_positive_f32(&-1.0));
+        assert_eq!(Err(Error::from_str("should be a strictly positive floating point number but was 0")), strictly_positive_f32(&0.0));
+        assert_eq!(Ok(2.0), strictly_positive_f32(&2.0));
     }
 
     #[test]

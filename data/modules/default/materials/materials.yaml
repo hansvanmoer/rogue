@@ -1,0 +1,11 @@
+materials:
+  - name: wood
+    density: 400
+    heat_capacity: 0.0017
+    thermal_conductivity: 0.12
+    auto_ignition_temperature: 527
+    melting_temperature: 100000
+    boiling_temperature: 100000
+    ultimate_tensile_strength: 40
+    shear_strength_factor: 9
+    compressive_strength: 40

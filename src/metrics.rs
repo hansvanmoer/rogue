@@ -28,15 +28,15 @@ impl<T: AdditiveGroup + Debug + PartialEq + PartialOrd> NonZeroDimensions2<T> {
     ///
     /// Constructs a new dimension object, if possible
     ///
-    pub fn new(width: T, height: T) -> Option<Self> {
+    pub fn new(width: T, height: T) -> Result<Self, Error> {
         if width > T::IDENTITY {
             if height > T::IDENTITY {
-                Some(NonZeroDimensions2 { width, height })
+                Ok(NonZeroDimensions2 { width, height })
             } else {
-                None
+                Err(Error::InvalidHeight)
             }
         } else {
-            None
+            Err(Error::InvalidWidth)
         }
     }
     
@@ -52,22 +52,38 @@ impl<T: AdditiveGroup + Debug + PartialEq + PartialOrd> NonZeroDimensions2<T> {
     }
 }
 
+///
+/// Errors that can occur when creating metrics related structs
+/// 
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    ///
+    /// An invalid value was provided as the width of a structure
+    /// 
+    InvalidWidth,
+    
+    ///
+    /// An invalid value was provided as the height of a structure
+    /// 
+    InvalidHeight
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     pub fn test_non_zero_dimensions2i() {
-        assert_eq!(None, NonZeroDimensions2::<i32>::new(-2, 4));
-        assert_eq!(None, NonZeroDimensions2::<i32>::new(0, 4));
-        assert_eq!(None, NonZeroDimensions2::<i32>::new(2, -4));
-        assert_eq!(None, NonZeroDimensions2::<i32>::new(2, 0));
+        assert_eq!(Err(Error::InvalidWidth), NonZeroDimensions2::<i32>::new(-2, 4));
+        assert_eq!(Err(Error::InvalidWidth), NonZeroDimensions2::<i32>::new(0, 4));
+        assert_eq!(Err(Error::InvalidHeight), NonZeroDimensions2::<i32>::new(2, -4));
+        assert_eq!(Err(Error::InvalidHeight), NonZeroDimensions2::<i32>::new(2, 0));
         let created = NonZeroDimensions2::<i32>::new(2, 4);
         let expected = NonZeroDimensions2 {
             width: 2,
             height: 4,
         };
-        assert_eq!(Some(expected), created);
+        assert_eq!(Ok(expected), created);
         let created = created.unwrap();
         assert_eq!(&2, created.get_width());
         assert_eq!(&4, created.get_height());

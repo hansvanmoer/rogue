@@ -1,0 +1,11 @@
+name: temperate
+texture_set: temperate_tiles
+tiles:
+  - name: grass
+    land: true
+    variants:
+      - texture: grass_0
+  - name: dirt
+    land: true
+    variants:
+      - texture: dirt_0

@@ -6,10 +6,12 @@ use serde::Deserialize;
 use crate::configuration::{Error as ConfigurationError, load_configuration};
 use crate::environment::Environment;
 use crate::localization::{Error as LocalizationError, load_labels_for_language};
+use crate::material::{Error as MaterialError, MaterialDescriptor};
 use crate::resource::{Error as ResourceError, ResourceMap};
 use crate::settings::Settings;
 use crate::system::SubSystems;
 use crate::texture::{Error as TextureError, Texture, TextureSet};
+use crate::tile_set::{Error as TileSetError, TileSet};
 use crate::validation::{Error as ValidationError, matches_pattern_and_capture, non_empty_string, validate_field, validate_field_with, ValidateOwned};
 
 ///
@@ -27,6 +29,11 @@ pub struct ImmutableState<'a> {
     labels: ResourceMap<String>,
 
     ///
+    /// Materials
+    ///
+    materials: ResourceMap<MaterialDescriptor>,
+
+    ///
     /// The module textures
     ///
     textures: ResourceMap<Texture<'a>>,
@@ -35,6 +42,11 @@ pub struct ImmutableState<'a> {
     /// The module textures set
     ///
     texture_sets: ResourceMap<TextureSet<'a>>,
+
+    ///
+    /// The module tile sets
+    ///
+    tile_sets: ResourceMap<TileSet>,
 }
 
 impl<'a> ImmutableState<'a> {
@@ -60,10 +72,23 @@ impl<'a> ImmutableState<'a> {
         path.pop();
 
         path.push(&descriptor.textures_folder);
+        debug!("Loading textures from path {}...", path.as_path().display());
         let textures = Texture::from_folder_path(sub_systems.texture_creator(), &path)?;
         path.pop();
         path.push(&descriptor.texture_sets_folder);
         let texture_sets = TextureSet::from_folder_path(sub_systems.texture_creator(), &mut path)?;
+        path.pop();
+        debug!("Textures loaded: {}", textures.len());
+
+        path.push("materials");
+        debug!("Loading materials from path {}...", path.as_path().display());
+        let materials = MaterialDescriptor::from_folder_path(&mut path)?;
+        debug!("Materials loaded: {}", materials.len());
+        path.pop();
+
+        path.push(&descriptor.tile_sets_folder);
+        debug!("Loading tile sets from path {}...", path.as_path().display());
+        let tile_sets = TileSet::from_folder_path(&mut path, &texture_sets)?;
         path.pop();
 
         debug!("All resources loaded.");
@@ -71,8 +96,10 @@ impl<'a> ImmutableState<'a> {
         Ok(ImmutableState {
             descriptor,
             labels,
+            materials,
             textures,
             texture_sets,
+            tile_sets,
         })
     }
 
@@ -95,6 +122,20 @@ impl<'a> ImmutableState<'a> {
                 None
             }
         }
+    }
+    
+    ///
+    /// Returns the texture map
+    /// 
+    pub fn textures(&self) -> &ResourceMap<Texture<'a>> {
+        &self.textures
+    }
+    
+    ///
+    /// Returns the texture set
+    /// 
+    pub fn texture_sets(&self) -> &ResourceMap<TextureSet<'a>> {
+        &self.texture_sets
     }
 }
 
@@ -126,6 +167,11 @@ struct ModuleDescriptor {
     /// The texture set folder
     ///
     texture_sets_folder: String,
+
+    ///
+    /// The tile set folder
+    ///
+    tile_sets_folder: String,
 }
 
 ///
@@ -149,14 +195,19 @@ struct ModuleDescriptorConfig {
     labels_folder: String,
 
     ///
-    /// The label folders
+    /// The texture folder
     ///
     textures_folder: String,
 
     ///
-    /// The label folders
+    /// The texture set folder
     ///
     texture_sets_folder: String,
+
+    ///
+    /// The tile set folder
+    ///
+    tile_sets_folder: String,
 }
 
 impl ValidateOwned for ModuleDescriptorConfig {
@@ -183,15 +234,17 @@ impl ValidateOwned for ModuleDescriptorConfig {
                 Version::new(major, minor, bugfix)
             })
         )?;
-        let labels_folder = validate_field("labels", non_empty_string(&self.labels_folder))?;
-        let textures_folder = validate_field("textures", non_empty_string(&self.textures_folder))?;
-        let texture_sets_folder = validate_field("texture_sets", non_empty_string(&self.texture_sets_folder))?;
+        let labels_folder = validate_field("labels_folders", non_empty_string(&self.labels_folder))?;
+        let textures_folder = validate_field("textures_folder", non_empty_string(&self.textures_folder))?;
+        let texture_sets_folder = validate_field("texture_sets_folder", non_empty_string(&self.texture_sets_folder))?;
+        let tile_sets_folder = validate_field("tile_sets_folder", non_empty_string(&self.tile_sets_folder))?;
         Ok(ModuleDescriptor {
             name,
             version,
             labels_folder,
             textures_folder,
             texture_sets_folder,
+            tile_sets_folder,
         })
     }
 }
@@ -248,14 +301,19 @@ pub enum Error {
     Configuration(crate::configuration::Error),
 
     ///
+    /// Localization error
+    ///
+    Localization(LocalizationError),
+
+    ///
     /// The module was not found
     ///
     ModuleNotFound(String),
 
     ///
-    /// Localization error
+    /// An error occurred while loading materials
     ///
-    Localization(LocalizationError),
+    Material(MaterialError),
 
     ///
     /// A resource error occurred
@@ -271,6 +329,11 @@ pub enum Error {
     /// An error occurred while loading textures
     ///
     Texture(TextureError),
+
+    ///
+    /// An error occurred while loading tile sets
+    ///
+    TileSet(TileSetError),
 
     ///
     /// A validation error occurred
@@ -305,5 +368,17 @@ impl From<TextureError> for Error {
 impl From<LocalizationError> for Error {
     fn from(e: LocalizationError) -> Self {
         Error::Localization(e)
+    }
+}
+
+impl From<MaterialError> for Error {
+    fn from(e: MaterialError) -> Self {
+        Error::Material(e)
+    }
+}
+
+impl From<TileSetError> for Error {
+    fn from(e: TileSetError) -> Self {
+        Error::TileSet(e)
     }
 }

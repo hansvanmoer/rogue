@@ -3,12 +3,15 @@ mod environment;
 mod graphics;
 mod immutable_state;
 mod localization;
+mod material;
 mod metrics;
 mod resource;
 mod settings;
 mod system;
 mod texture;
 mod validation;
+mod local_map;
+mod tile_set;
 
 use std::thread::sleep;
 use std::time::Duration;

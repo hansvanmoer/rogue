@@ -5,7 +5,25 @@ use crate::resource::Error::DuplicateName;
 ///
 /// A resource ID type
 ///
-type ResourceId = usize;
+pub type ResourceId = usize;
+
+///
+/// A resource ID and name
+///
+#[derive(Debug, PartialEq)]
+pub struct ResourceRef {
+    id: ResourceId,
+    name: String,
+}
+
+impl ResourceRef {
+    ///
+    /// Creates a new resource reference
+    /// 
+    pub fn new(id: ResourceId, name: String) -> ResourceRef {
+        ResourceRef { id, name }
+    }
+}
 
 ///
 /// Maps resources on ID's and names
@@ -73,8 +91,36 @@ impl<T> ResourceMap<T> {
     ///
     /// Gets a resource by ID
     ///
+    pub fn get_required_id_by_name(&self, name: &str) -> Result<ResourceId, Error> {
+        self.get_id_by_name(name).ok_or_else(|| Error::NotFoundForName(String::from(name)))
+    }
+
+    ///
+    /// Creates a resource reference
+    /// 
+    pub fn create_resource_ref(&self, name: &str) -> Result<ResourceRef, Error> {
+        Ok(ResourceRef::new(self.get_required_id_by_name(name)?, String::from(name)))
+    }
+    
+    ///
+    /// Fetches a resource by reference
+    /// 
+    pub fn get_required_by_ref(&self, resource_ref: &ResourceRef) -> Result<&T, Error> {
+        self.get_by_id(resource_ref.id).ok_or_else(|| Error::NotFoundForId(resource_ref.id))
+    }
+    
+    ///
+    /// Gets a resource by ID
+    ///
     pub fn get_by_id(&self, id: ResourceId) -> Option<&T> {
         self.by_id.get(id)
+    }
+
+    ///
+    /// Gets a resource by ID
+    ///
+    pub fn get_required_by_id(&self, id: ResourceId) -> Result<&T, Error> {
+        self.by_id.get(id).ok_or_else(|| Error::NotFoundForId(id))
     }
 
     ///
