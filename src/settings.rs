@@ -2,7 +2,7 @@ use std::cmp::min;
 use serde::{Deserialize, Serialize};
 use crate::configuration::{Error as ConfigurationError, load_configuration};
 use crate::environment::Environment;
-use crate::validation::{matches_pattern, positive_integer, validate_field_with, Error as ValidationError, ValidateOwned};
+use crate::validation::{matches_pattern, Error as ValidationError, ValidateOwned};
 
 use log::warn;
 use regex::Regex;

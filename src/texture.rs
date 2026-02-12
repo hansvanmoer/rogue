@@ -1,17 +1,18 @@
 use image::{GenericImage, ImageError, ImageReader, RgbaImage};
 use log::{debug, error};
 use sdl2::pixels::PixelFormatEnum;
-use sdl2::render::{TextureCreator, TextureValueError};
+use sdl2::render::{Canvas, TextureCreator, TextureValueError};
 use sdl2::surface::Surface;
 use sdl2::video::WindowContext;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-
+use sdl2::rect::Rect;
 use crate::configuration::{Error as ConfigurationError, load_configuration};
-use crate::metrics::NonZeroDimensions2;
+use crate::graphics::Error as GraphicsError;
+use crate::metrics::{Bounds2, NonZeroDimensions2};
 use crate::resource::{Error as ResourceError, ResourceMap};
-use crate::validation::{non_empty_string, validate_field, validate_field_with, validate_vec_field, Error as ValidationError, ValidateOwned};
+use crate::validation::{non_empty_string, validate_field, validate_vec_field, Error as ValidationError, ValidateOwned};
 
 ///
 /// A wrapper around an SDL2 texture handle
@@ -260,6 +261,11 @@ pub type SubTextureIndex = usize;
 ///
 pub struct TextureSet<'a> {
     ///
+    /// The rectangle of the first texture
+    ///
+    tile_size: NonZeroDimensions2<i32>,
+
+    ///
     /// The indexes of the subtextures by name
     ///
     indices_by_name: HashMap<String, usize>,
@@ -320,6 +326,7 @@ impl<'a> TextureSet<'a> {
         let handle = creator.create_texture_from_surface(surface)?;
 
         Ok(TextureSet {
+            tile_size: descriptor.size.clone(),
             indices_by_name,
             columns,
             handle,
@@ -339,7 +346,24 @@ impl<'a> TextureSet<'a> {
     /// Fetches the index of the subtexture
     ///
     pub fn get_index(&self, name: &str) -> Result<SubTextureIndex, Error> {
-        self.indices_by_name.get(name).cloned().ok_or_else(|| Error::NotFound(name.to_string()))
+        self.indices_by_name.get(name).cloned().ok_or_else(|| Error::NotFoundForName(name.to_string()))
+    }
+
+    ///
+    /// Renders a subtexture to the specified canvas at the specified bounds
+    ///
+    pub fn render(&self, canvas: &mut Canvas<sdl2::video::Window>, index: SubTextureIndex, bounds: &Bounds2<f32>, flip_horizontal: bool) -> Result<(), GraphicsError>{
+        let row = index / self.columns;
+        let col = index % self.columns;
+        if row >= self.columns || col >= self.columns {
+            Err(GraphicsError::Texture(Error::NotFoundForIndex(index)))
+        } else {
+            let x = col as i32 * self.tile_size.get_width();
+            let y = row as i32 * self.tile_size.get_height();
+            let src = Rect::new(x, y, self.tile_size.get_width().cast_unsigned(), self.tile_size.get_height().cast_unsigned());
+            let target = Rect::new(bounds.get_min_x() as i32, bounds.get_min_y() as i32, bounds.get_x_difference() as u32, bounds.get_y_difference() as u32);
+            canvas.copy_ex(&self.handle, src, target,  0.0, None, flip_horizontal, false).map_err(|msg| GraphicsError::Sdl(msg))
+        }
     }
 
     ///
@@ -574,7 +598,17 @@ pub enum Error {
     ///
     /// No subtexture was found for this name
     ///
-    NotFound(String),
+    NotFoundForName(String),
+
+    ///
+    /// No subtexture was found for this index
+    ///
+    NotFoundForIndex(SubTextureIndex),
+
+    ///
+    /// Graphics error
+    ///
+    Graphics(String),
 }
 
 impl From<ConfigurationError> for Error {

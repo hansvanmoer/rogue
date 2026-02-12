@@ -12,6 +12,8 @@ mod texture;
 mod validation;
 mod local_map;
 mod tile_set;
+mod color;
+mod transform;
 
 use std::thread::sleep;
 use std::time::Duration;

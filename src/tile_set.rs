@@ -17,7 +17,7 @@ pub struct TileSet {
     ///
     /// The unpacked tiles for easy lookup
     ///
-    tiles: Vec<Tile>,
+    tiles: Vec<TileType>,
 
     ///
     /// The texture set ID for this tile set
@@ -25,14 +25,31 @@ pub struct TileSet {
     texture_set_id: ResourceId,
 }
 
+impl TileSet {
+    ///
+    /// Checks whether this is a valid tile
+    /// Note that
+    ///
+    pub fn is_valid_index(&self, index: usize) -> bool {
+        index < self.tiles.len()
+    }
+}
+
 ///
-/// A tile
+/// A tile type
 ///
-pub struct Tile {
+pub struct TileType {
     ///
     /// The texture index associated with this tile
     ///
     texture_index: SubTextureIndex,
+
+    ///
+    /// This is an empty tile.
+    /// Note that empty tiles are not rendered
+    ///
+    empty: bool,
+
     ///
     /// This is a land tile
     ///
@@ -70,25 +87,30 @@ impl TileSet {
     fn from_descriptor_path<'a>(path: &mut PathBuf, texture_sets: &ResourceMap<TextureSet<'a>>) -> Result<TileSet, Error>{
         let config: TileSetConfig = load_configuration(path)?;
         let descriptor = config.validate_owned()?;
-        let texture_set_id = texture_sets.get_required_id_by_name(&descriptor.texture_set)?;
-        let tiles = Self::unpack_tiles(&descriptor, texture_sets.get_required_by_id(texture_set_id)?)?;
-        Ok(TileSet{
-            descriptor,
-            tiles,
-            texture_set_id,
-        })
+        if descriptor.tiles.is_empty() {
+            Err(Error::EmptyTileSet)
+        } else {
+            let texture_set_id = texture_sets.get_required_id_by_name(&descriptor.texture_set)?;
+            let tiles = Self::unpack_tiles(&descriptor, texture_sets.get_required_by_id(texture_set_id)?)?;
+            Ok(TileSet {
+                descriptor,
+                tiles,
+                texture_set_id,
+            })
+        }
     }
 
     ///
     /// Unpacks the tiles for easy indexing
     ///
-    fn unpack_tiles(descriptor: &TileSetDescriptor, texture_set: &TextureSet) -> Result<Vec<Tile>, Error> {
+    fn unpack_tiles(descriptor: &TileSetDescriptor, texture_set: &TextureSet) -> Result<Vec<TileType>, Error> {
         let mut tiles = Vec::new();
         for tile in descriptor.tiles.iter() {
             for variant in tile.variants.iter() {
                 let texture_index = texture_set.get_index(&variant.texture)?;
-                tiles.push(Tile {
+                tiles.push(TileType {
                     texture_index,
+                    empty: tile.empty,
                     land: tile.land,
                     water: tile.water,
                 })
@@ -128,6 +150,12 @@ struct TileDescriptor {
     /// The tile name
     ///
     name: String,
+
+    ///
+    /// This is an empty tile.
+    /// Note that empty tiles are not rendered
+    ///
+    empty: bool,
 
     ///
     /// This is a land tile
@@ -200,6 +228,12 @@ struct TileConfig {
     name: String,
 
     ///
+    /// This is an empty tile.
+    /// Note that empty tiles are not rendered
+    ///
+    empty: Option<bool>,
+
+    ///
     /// Whether this tile is a land tile
     ///
     land: Option<bool>,
@@ -221,6 +255,7 @@ impl ValidateOwned for TileConfig {
     fn validate_owned(&self) -> Result<Self::Output, ValidationError> {
         Ok(TileDescriptor {
             name: validate_field("name", non_empty_string(&self.name))?,
+            empty: self.empty.unwrap_or(false),
             land: self.land.unwrap_or(false),
             water: self.water.unwrap_or(false),
             variants: validate_vec_field("variants", &self.variants,|v| v.validate_owned())?,
@@ -288,6 +323,11 @@ pub enum Error {
     /// A configuration error
     ///
     Configuration(ConfigurationError),
+
+    ///
+    /// The tile set was empty
+    ///
+    EmptyTileSet,
 
     ///
     /// A resource error

@@ -137,6 +137,13 @@ impl<'a> ImmutableState<'a> {
     pub fn texture_sets(&self) -> &ResourceMap<TextureSet<'a>> {
         &self.texture_sets
     }
+
+    ///
+    /// Returns the tile sets
+    ///
+    pub fn tile_sets(&self) -> &ResourceMap<TileSet> {
+        &self.tile_sets
+    }
 }
 
 ///

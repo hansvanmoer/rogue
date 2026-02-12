@@ -48,6 +48,13 @@ pub fn validate_vec_field<T, U, F: Fn(&T) -> Result<U, Error>>(name: &str, value
 }
 
 ///
+/// Triggers a validation failure
+///
+pub fn validation_failed<T>(msg: &str) -> Result<T, Error> {
+    Err(Error::from_string(msg.to_owned()))
+}
+
+///
 /// Checks whether the input is a positive integer
 ///
 pub fn positive_integer(number: &i32) -> Result<i32, Error> {
