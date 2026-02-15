@@ -19,9 +19,32 @@ use crate::validation::{non_empty_string, validate_field, validate_vec_field, Er
 ///
 pub struct Texture<'a> {
     handle: sdl2::render::Texture<'a>,
+    width: u32,
+    height: u32,
 }
 
 impl<'a> Texture<'a> {
+
+    ///
+    /// Loads textures from a descriptor located in the specified folder
+    ///
+    pub fn from_folder_path<P: AsRef<Path>>(creator: &'a TextureCreator<WindowContext>, path: P) -> Result<ResourceMap<Texture>, Error> {
+        debug!("Loading textures...");
+        let mut path = path.as_ref().to_path_buf();
+        let mut map = ResourceMap::new();
+        Self::from_folder_path_recursive(creator, &mut path, &mut map, None)?;
+        debug!("Loaded {} textures.", map.len());
+        Ok(map)
+    }
+
+    ///
+    /// Renders a texture to the specified canvas at the specified bounds
+    ///
+    pub fn render(&self, canvas: &mut Canvas<sdl2::video::Window>, bounds: &Bounds2<f32>) -> Result<(), GraphicsError>{
+        let src = Rect::new(0, 0, self.width, self.height);
+        let target = Rect::new(bounds.get_min_x() as i32, bounds.get_min_y() as i32, bounds.get_x_difference() as u32, bounds.get_y_difference() as u32);
+        canvas.copy(&self.handle, src, target).map_err(|msg| GraphicsError::Sdl(msg))
+    }
 
     ///
     /// Loads a texture from the path
@@ -54,23 +77,13 @@ impl<'a> Texture<'a> {
             width,
             height,
             width * 4,
-            PixelFormatEnum::RGBA8888
+            PixelFormatEnum::RGBA32
         ).map_err(|msg| Error::Sdl(msg))?;
         Ok(Texture {
             handle: creator.create_texture_from_surface(surface)?,
+            width,
+            height
         })
-    }
-
-    ///
-    /// Loads textures from a descriptor located in the specified folder
-    ///
-    pub fn from_folder_path<P: AsRef<Path>>(creator: &'a TextureCreator<WindowContext>, path: P) -> Result<ResourceMap<Texture>, Error> {
-        debug!("Loading textures...");
-        let mut path = path.as_ref().to_path_buf();
-        let mut map = ResourceMap::new();
-        Self::from_folder_path_recursive(creator, &mut path, &mut map, None)?;
-        debug!("Loaded {} textures.", map.len());
-        Ok(map)
     }
 
     ///
@@ -339,6 +352,7 @@ impl<'a> TextureSet<'a> {
     pub fn from_folder_path(creator: &'a TextureCreator<WindowContext>, path: &mut PathBuf) -> Result<ResourceMap<TextureSet<'a>>, Error> {
         let mut map = ResourceMap::new();
         Self::from_folder_path_recursive(creator, path, &mut map)?;
+        debug!("Loaded {} texture sets.", map.len());
         Ok(map)
     }
 
@@ -347,6 +361,13 @@ impl<'a> TextureSet<'a> {
     ///
     pub fn get_index(&self, name: &str) -> Result<SubTextureIndex, Error> {
         self.indices_by_name.get(name).cloned().ok_or_else(|| Error::NotFoundForName(name.to_string()))
+    }
+
+    ///
+    /// Fetches the size of a tile in the tile set
+    ///
+    pub fn get_tile_size(&self) -> &NonZeroDimensions2<i32> {
+        &self.tile_size
     }
 
     ///

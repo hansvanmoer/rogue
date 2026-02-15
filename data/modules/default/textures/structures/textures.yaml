@@ -1,6 +1,6 @@
 size:
   width: 64
-  height: 64
+  height: 128
 textures:
   - name: door_wood_0
     file: door_wood_0.png

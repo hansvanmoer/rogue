@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use log::debug;
 use serde::Deserialize;
 use crate::configuration::{Error as ConfigurationError, load_configuration};
 use crate::resource::{Error as ResourceError, ResourceId, ResourceMap};
@@ -32,6 +33,13 @@ impl TileSet {
     ///
     pub fn is_valid_index(&self, index: usize) -> bool {
         index < self.tiles.len()
+    }
+
+    ///
+    /// Gets the texture index for a given tile
+    ///
+    pub fn get_texture_index(&self, index: usize) -> SubTextureIndex {
+        self.tiles[index].texture_index
     }
 }
 
@@ -67,18 +75,25 @@ impl TileSet {
     /// Loads all tile sets in a folder
     ///
     pub fn from_folder_path<'a>(path: &mut PathBuf, texture_sets: &ResourceMap<TextureSet<'a>>) -> Result<ResourceMap<TileSet>, Error> {
+        debug!("Loading tile sets from {}", path.display());
         path.push("tile_sets.yaml");
         let config = load_configuration::<&mut PathBuf, TileSetsConfig>(path)?;
         path.pop();
         let descriptor = config.validate_owned()?;
         let mut tile_sets = ResourceMap::new();
-        for tile_set_name in descriptor.tile_sets.iter() {
+        for tile_set_name in descriptor.files.iter() {
             path.push(tile_set_name);
             path.set_extension("yaml");
-            tile_sets.insert(tile_set_name.to_string(), Self::from_descriptor_path(path, texture_sets)?);
+            let tile_set = Self::from_descriptor_path(path, texture_sets)?;
+            tile_sets.insert(tile_set.descriptor.name.clone(), tile_set);
             path.pop();
         }
+        debug!("Loaded {} tile sets from {}", tile_sets.len(), path.display());
         Ok(tile_sets)
+    }
+    
+    pub fn get_texture_set_name(&self) -> &str {
+        &self.descriptor.texture_set
     }
 
     ///
@@ -92,6 +107,7 @@ impl TileSet {
         } else {
             let texture_set_id = texture_sets.get_required_id_by_name(&descriptor.texture_set)?;
             let tiles = Self::unpack_tiles(&descriptor, texture_sets.get_required_by_id(texture_set_id)?)?;
+            debug!("Loaded tile set {} with {} tiles", descriptor.name, tiles.len());
             Ok(TileSet {
                 descriptor,
                 tiles,
@@ -291,7 +307,7 @@ struct TileSetsDescriptor {
     ///
     /// The tile sets
     ///
-    tile_sets: Vec<String>,
+    files: Vec<String>,
 }
 
 ///
@@ -302,14 +318,14 @@ struct TileSetsConfig {
     ///
     /// The tile sets
     ///
-    tile_sets: Vec<String>,
+    files: Vec<String>,
 }
 
 impl ValidateOwned for TileSetsConfig {
     type Output = TileSetsDescriptor;
     fn validate_owned(&self) -> Result<Self::Output, ValidationError> {
         Ok(TileSetsDescriptor {
-            tile_sets: validate_vec_field("tile_sets", &self.tile_sets, non_empty_string)?,
+            files: validate_vec_field("tile_sets", &self.files, non_empty_string)?,
         })
     }
 }

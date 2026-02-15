@@ -1,3 +1,5 @@
+use crate::metrics::Bounds2;
+
 ///
 /// A transformation
 ///
@@ -114,6 +116,15 @@ impl Transform {
             self.matrix[0] * x + self.matrix[1] * y,
             self.matrix[3] * x + self.matrix[4] * y,
         )
+    }
+
+    ///
+    /// Transforms a bounding box
+    ///
+    pub fn transform_bounds(&self, bounds: &Bounds2<f32>) -> Bounds2<f32> {
+        let (top, left) = self.transform_point(bounds.get_min_x(), bounds.get_min_y());
+        let (bottom, right) = self.transform_point(bounds.get_max_x(), bounds.get_max_y());
+        Bounds2::new(left, right, top, bottom)
     }
 
 }

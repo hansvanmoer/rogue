@@ -1,4 +1,7 @@
+use std::any::Any;
+use log::debug;
 use serde::{Deserialize, Serialize};
+use crate::graphics::{Error as GraphicsError, Graphics};
 use crate::immutable_state::ImmutableState;
 use crate::metrics::NonZeroDimensions3;
 use crate::resource::{Error as ResourceError};
@@ -38,7 +41,7 @@ impl<'a> LocalMap<'a> {
     pub fn new(size: &NonZeroDimensions3<i32>, tile_set_name: &str, state: &'a ImmutableState) -> Result<LocalMap<'a>, Error> {
         let bounds = Bounds::new(size);
         let tile_set = state.tile_sets().get_required_by_name(tile_set_name).map_err(|e| Error::TileSetNotFound(e))?;
-        let texture_set = state.texture_sets().get_required_by_name(tile_set_name).map_err(|e| Error::TextureSetNotFound(e))?;
+        let texture_set = state.texture_sets().get_required_by_name(tile_set.get_texture_set_name()).map_err(|e| Error::TextureSetNotFound(e))?;
 
         // note that tile sets can not be constructed empty, so there is always a tile with index 0
         let tiles= vec![Tile {type_index: 0}; bounds.index_bound()];
@@ -54,9 +57,11 @@ impl<'a> LocalMap<'a> {
     /// Creates a new local map
     ///
     pub fn from_data(data: &LocalMapData, state: &'a ImmutableState) -> Result<LocalMap<'a>, Error>{
+        debug!("Loading local map with size {}x{}x{}", data.size.get_width(), data.size.get_height(), data.size.get_depth());
         let bounds = Bounds::new(&data.size);
         let tile_set = state.tile_sets().get_required_by_name(&data.tile_set).map_err(|e| Error::TileSetNotFound(e))?;
-        let texture_set = state.texture_sets().get_required_by_name(&data.tile_set).map_err(|e| Error::TextureSetNotFound(e))?;
+        debug!("Using texture set {}", tile_set.get_texture_set_name());
+        let texture_set = state.texture_sets().get_required_by_name(tile_set.get_texture_set_name()).map_err(|e| Error::TextureSetNotFound(e))?;
         let tiles = Self::validate_tiles(&data.tiles, &bounds, tile_set)?;
         Ok(LocalMap {
             bounds,
@@ -83,6 +88,18 @@ impl<'a> LocalMap<'a> {
             }
         }
         Ok(output)
+    }
+
+    ///
+    /// Renders the map
+    ///
+    pub fn render(&self, graphics: &mut Graphics<'a>) -> Result<(), Error>{
+        let plane = self.bounds.x * self.bounds.y;
+        let start = (graphics.get_view().get_z() as usize) * plane;
+        let end = start + plane;
+        let tiles = self.tiles[start .. end].iter().map(|tile | self.tile_set.get_texture_index(tile.type_index));
+        graphics.draw_tiles(self.texture_set, tiles, self.bounds.x)?;
+        Ok(())
     }
 }
 
@@ -176,6 +193,7 @@ impl Default for View {
 ///
 /// Errors while loading and using the local map
 ///
+#[derive(Debug, PartialEq)]
 pub enum Error {
     ///
     /// The tile set was not found
@@ -191,6 +209,17 @@ pub enum Error {
     /// An invalid tile
     ///
     InvalidTile(usize, usize, usize),
+
+    ///
+    /// A rendering error occurred while rendering the map.
+    ///
+    Render(GraphicsError),
+}
+
+impl From<GraphicsError> for Error {
+    fn from(e: GraphicsError) -> Self {
+        Self::Render(e)
+    }
 }
 
 ///

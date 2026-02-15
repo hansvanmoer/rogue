@@ -1,12 +1,10 @@
 texture_sets:
   - name: temperate_tiles
     size:
-      width: 128
+      width: 64
       height: 64
     textures:
-      - name: dirt_0
-        file: dirt_0.png
       - name: grass_0
         file: grass_0.png
-      - name: grass_1
-        file: grass_1.png
+      - name: dirt_0
+        file: dirt_0.png

@@ -3,6 +3,7 @@ use log::debug;
 use sdl2::{EventPump, Sdl, VideoSubsystem};
 use sdl2::render::{Canvas, TextureCreator};
 use sdl2::video::{Window, WindowContext};
+use crate::graphics::{Graphics, View};
 use crate::settings::Settings;
 
 ///
@@ -76,12 +77,22 @@ impl SubSystems {
     pub fn texture_creator(&self) -> &TextureCreator<WindowContext> {
         &self.texture_creator
     }
+
+    ///
+    /// Creates a new graphics handle
+    /// 
+    pub fn create_graphics(&'_ self) -> Result<Graphics<'_>, Error> {
+        let canvas = self.canvas.try_borrow_mut().map_err(|_| Error::CanvasInUse)?;
+        Ok(Graphics::new(canvas, View::new(0.0, 0.0, 0, 1.0, 0)))
+    }
     
     ///
+    /// Presents the canvas
+    /// This can fail if a graphics handle is still in use
     /// 
-    /// 
-    pub fn present_canvas(&self) {
-        self.canvas.borrow_mut().present();
+    pub fn present_canvas(&self) -> Result<(), Error>{
+        self.canvas.try_borrow_mut().map_err(|_| Error::CanvasInUse)?.present();
+        Ok(())
     }
 }
 
@@ -94,4 +105,9 @@ pub enum Error {
     /// And SDL error occurred
     ///
     Sdl(String),
+    
+    ///
+    /// Canvas in use
+    /// 
+    CanvasInUse,
 }
