@@ -14,12 +14,15 @@ mod local_map;
 mod tile_set;
 mod color;
 mod transform;
+mod building;
+mod sparse_array;
 
 use std::thread::sleep;
 use std::time::Duration;
 use log::{debug, info};
 use sdl2::event::Event;
 use crate::environment::Environment;
+use crate::graphics::View;
 use crate::immutable_state::ImmutableState;
 use crate::local_map::LocalMap;
 use crate::metrics::NonZeroDimensions3;
@@ -45,8 +48,7 @@ fn main() {
     let mut event_pump = sub_systems.event_pump().expect("Failed to create event pump");
     let immutable_state = ImmutableState::new(&environment, &settings, &sub_systems).expect("Failed to create immutable game state");
 
-    let _map = LocalMap::new(&NonZeroDimensions3::new(2, 2, 2).unwrap(), "temperate", &immutable_state).expect("Failed to create local map");
-    let texture = immutable_state.textures().get_required_by_name("door_wood_0").expect("Failed to load door texture");
+    let map = LocalMap::new(&NonZeroDimensions3::new(10, 10, 2).unwrap(), "temperate", &immutable_state).expect("Failed to create local map");
 
     'main_loop: loop {
         for event in event_pump.poll_iter() {
@@ -57,9 +59,10 @@ fn main() {
                 },
                 _ => {}
             }
-            let mut graphics = sub_systems.create_graphics().expect("Failed to create graphics");
-            //map.render(&mut graphics).expect("rendering failed");
-            graphics.draw_sprite(&texture, metrics::Bounds2::new(0.0, 100.0, 0.0, 100.0)).expect("rendering failed");
+            let view = View::new(-100.0, -200.0, 0, 1.0, 0);
+            debug!("View: {:?}", view);
+            let mut graphics = sub_systems.create_graphics(view).expect("Failed to create graphics");
+            map.render(&mut graphics).expect("rendering failed");
         }
         sub_systems.present_canvas().expect("Failed to present canvas");
 

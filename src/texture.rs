@@ -12,7 +12,7 @@ use crate::configuration::{Error as ConfigurationError, load_configuration};
 use crate::graphics::Error as GraphicsError;
 use crate::metrics::{Bounds2, NonZeroDimensions2};
 use crate::resource::{Error as ResourceError, ResourceMap};
-use crate::validation::{non_empty_string, validate_field, validate_vec_field, Error as ValidationError, ValidateOwned};
+use crate::validation::{non_empty_string, validate_field, validate_optional_vec_field, validate_vec_field, Error as ValidationError, ValidateOwned};
 
 ///
 /// A wrapper around an SDL2 texture handle
@@ -193,15 +193,9 @@ impl ValidateOwned for TextureFolderConfig {
 
     fn validate_owned(&self) -> Result<Self::Output, ValidationError> {
         Ok(TextureFolderDescriptor {
-            folders: self.folders.as_ref()
-                .map(|fs| validate_vec_field("folders", fs, non_empty_string))
-                .transpose()?
-                .unwrap_or_else(Vec::new),
+            folders: validate_optional_vec_field("folders", &self.folders, non_empty_string)?,
             size: validate_field("size", self.size.as_ref().map(|s| s.validate_owned()).transpose())?,
-            textures: self.textures.as_ref()
-                .map(|ts| validate_vec_field("textures", ts, |t| t.validate_owned()))
-                .transpose()?
-                .unwrap_or_else(Vec::new),
+            textures: validate_optional_vec_field("textures", &self.textures, ValidateOwned::validate_owned)?,
         })
     }
 }
@@ -333,8 +327,8 @@ impl<'a> TextureSet<'a> {
             image.as_mut(),
             width * columns as u32,
             height * columns as u32,
-            width * 4,
-            PixelFormatEnum::RGBA8888
+            width * columns as u32 * 4,
+            PixelFormatEnum::RGBA32
         ).map_err(|msg| Error::Sdl(msg))?;
         let handle = creator.create_texture_from_surface(surface)?;
 
@@ -509,14 +503,8 @@ impl ValidateOwned for TextureSetFolderConfig {
 
     fn validate_owned(&self) -> Result<Self::Output, ValidationError> {
         Ok(TextureSetFolderDescriptor {
-            folders: self.folders.as_ref()
-                .map(|fs| validate_vec_field("folders", fs, non_empty_string))
-                .transpose()?
-                .unwrap_or_else(Vec::new),
-            texture_sets: self.texture_sets.as_ref()
-                .map(|ts| validate_vec_field("texture_sets", ts, |t| t.validate_owned()))
-                .transpose()?
-                .unwrap_or_else(Vec::new),
+            folders: validate_optional_vec_field("folders", &self.folders, non_empty_string)?,
+            texture_sets: validate_optional_vec_field("texture_sets", &self.texture_sets, ValidateOwned::validate_owned)?,
         })
     }
 }

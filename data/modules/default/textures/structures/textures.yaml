@@ -1,8 +1,0 @@
-size:
-  width: 64
-  height: 128
-textures:
-  - name: door_wood_0
-    file: door_wood_0.png
-  - name: wall_stone_0
-    file: wall_stone_0.png

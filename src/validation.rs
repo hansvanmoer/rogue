@@ -48,6 +48,17 @@ pub fn validate_vec_field<T, U, F: Fn(&T) -> Result<U, Error>>(name: &str, value
 }
 
 ///
+/// Validates an optional field vec of values
+///
+pub fn validate_optional_vec_field<T, U, F: Fn(&T) -> Result<U, Error>>(name: &str, values: &Option<Vec<T>>, f: F) -> Result<Vec<U>, Error> {
+    Ok(values.as_ref()
+        .map(|v| validate_vec_field(name, v, f))
+        .transpose()?
+        .unwrap_or_else(Vec::new)
+    )
+}
+
+///
 /// Triggers a validation failure
 ///
 pub fn validation_failed<T>(msg: &str) -> Result<T, Error> {
@@ -195,6 +206,7 @@ mod tests {
         numbers: Vec<i32>,
         model: SubResult,
         models: Vec<SubResult>,
+        optional_numbers: Vec<i32>,
     }
 
     #[derive(Debug, PartialEq)]
@@ -208,6 +220,7 @@ mod tests {
         numbers: Vec<i32>,
         model: SubModel,
         models: Vec<SubModel>,
+        optional_numbers: Option<Vec<i32>>
     }
 
     impl ValidateOwned for TestModel {
@@ -219,6 +232,7 @@ mod tests {
                 numbers: validate_field_with("numbers", || validate_vec(&self.numbers, positive_integer))?,
                 model: validate_field_with("model", || self.model.validate_owned())?,
                 models: validate_vec_field("models", &self.models, SubModel::validate_owned)?,
+                optional_numbers: validate_optional_vec_field("optional_numbers", &self.optional_numbers, positive_integer)?,
             })
         }
     }
@@ -296,6 +310,7 @@ mod tests {
                     numbers: vec![3, 4],
                 }
             ],
+            optional_numbers: Some(vec![3, 4]),
         };
         let expected = TestResult {
             number: 1,
@@ -310,6 +325,7 @@ mod tests {
                     numbers: vec![3, 4],
                 }
             ],
+            optional_numbers: vec![3, 4],
         };
         assert_eq!(Ok(expected), input.validate_owned());
     }
@@ -329,6 +345,7 @@ mod tests {
                     numbers: vec![3, 4],
                 }
             ],
+            optional_numbers: Some(vec![3, 4]),
         };
         let expected = Error::Failure(String::from("should be a positive integer but was -1"), String::from(".number"));
         assert_eq!(Err(expected), input.validate_owned());
@@ -349,9 +366,66 @@ mod tests {
                     numbers: vec![3, 4],
                 }
             ],
+            optional_numbers: Some(vec![3, 4]),
         };
         let expected = Error::Failure(String::from("should be a positive integer but was -3"), String::from(".numbers[1]"));
         assert_eq!(Err(expected), input.validate_owned());
+    }
+
+    #[test]
+    pub fn invalid_optional_vec_field() {
+        let input = TestModel {
+            number: 1,
+            numbers: vec![2, 3, 0],
+            model: SubModel {
+                number: 3,
+                numbers: vec![3, 4],
+            },
+            models: vec![
+                SubModel {
+                    number: 2,
+                    numbers: vec![3, 4],
+                }
+            ],
+            optional_numbers: Some(vec![-3, 4]),
+        };
+        let expected = Error::Failure(String::from("should be a positive integer but was -3"), String::from(".optional_numbers[0]"));
+        assert_eq!(Err(expected), input.validate_owned());
+    }
+
+    #[test]
+    pub fn empty_optional_vec_field() {
+        let input = TestModel {
+            number: 1,
+            numbers: vec![2, 3, 0],
+            model: SubModel {
+                number: 3,
+                numbers: vec![3, 4],
+            },
+            models: vec![
+                SubModel {
+                    number: 2,
+                    numbers: vec![3, 4],
+                }
+            ],
+            optional_numbers: None,
+        };
+        let expected = TestResult {
+            number: 1,
+            numbers: vec![2, 3, 0],
+            model: SubResult {
+                number: 3,
+                numbers: vec![3, 4],
+            },
+            models: vec![
+                SubResult {
+                    number: 2,
+                    numbers: vec![3, 4],
+                }
+            ],
+            optional_numbers: vec![],
+        };
+        assert_eq!(Ok(expected), input.validate_owned());
     }
 
     #[test]
@@ -369,6 +443,7 @@ mod tests {
                     numbers: vec![3, 4],
                 }
             ],
+            optional_numbers: Some(vec![3, 4]),
         };
         let expected = Error::Failure(String::from("should be a positive integer but was -1"), String::from(".model.number"));
         assert_eq!(Err(expected), input.validate_owned());
@@ -389,6 +464,7 @@ mod tests {
                     numbers: vec![3, 4],
                 }
             ],
+            optional_numbers: Some(vec![3, 4]),
         };
         let expected = Error::Failure(String::from("should be a positive integer but was -4"), String::from(".model.numbers[1]"));
         assert_eq!(Err(expected), input.validate_owned());
@@ -409,6 +485,7 @@ mod tests {
                     numbers: vec![3, -4],
                 }
             ],
+            optional_numbers: Some(vec![3, 4]),
         };
         let expected = Error::Failure(String::from("should be a positive integer but was -4"), String::from(".models[0].numbers[1]"));
         assert_eq!(Err(expected), input.validate_owned());

@@ -3,6 +3,7 @@ use crate::metrics::Bounds2;
 ///
 /// A transformation
 ///
+#[derive(Debug, PartialEq)]
 pub struct Transform {
     ///
     /// The transformation matrix
@@ -122,8 +123,8 @@ impl Transform {
     /// Transforms a bounding box
     ///
     pub fn transform_bounds(&self, bounds: &Bounds2<f32>) -> Bounds2<f32> {
-        let (top, left) = self.transform_point(bounds.get_min_x(), bounds.get_min_y());
-        let (bottom, right) = self.transform_point(bounds.get_max_x(), bounds.get_max_y());
+        let (left, top) = self.transform_point(bounds.get_min_x(), bounds.get_min_y());
+        let (right, bottom) = self.transform_point(bounds.get_max_x(), bounds.get_max_y());
         Bounds2::new(left, right, top, bottom)
     }
 

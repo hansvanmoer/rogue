@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::configuration::{Error as ConfigurationError, load_configuration};
 use crate::resource::{Error as ResourceError, ResourceMap};
-use crate::validation::{Error as ValidationError, non_empty_string, positive_f32, strictly_positive_f32, validate_field, validate_vec_field, ValidateOwned};
+use crate::validation::{Error as ValidationError, non_empty_string, positive_f32, strictly_positive_f32, validate_field, validate_vec_field, ValidateOwned, validate_optional_vec_field};
 
 ///
 /// Material properties are used for a simplistic physics simulation
@@ -218,16 +218,8 @@ impl ValidateOwned for MaterialsConfig {
 
     fn validate_owned(&self) -> Result<Self::Output, ValidationError> {
         Ok(MaterialsDescriptor{
-            files: self.files
-                .as_ref()
-                .map(|files| validate_vec_field("files", files, non_empty_string))
-                .transpose()?
-                .unwrap_or_else(Vec::new),
-            materials: self.materials
-                .as_ref()
-                .map(|materials| validate_vec_field("materials", materials, MaterialConfig::validate_owned))
-                .transpose()?
-                .unwrap_or_else(Vec::new),
+            files: validate_optional_vec_field("files", &self.files, non_empty_string)?,
+            materials: validate_optional_vec_field("materials", &self.materials, MaterialConfig::validate_owned)?,
         })
     }
 }

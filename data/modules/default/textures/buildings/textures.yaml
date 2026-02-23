@@ -1,0 +1,9 @@
+width: 64
+height: 128
+textures:
+  - name: grey_stone_horizontal_wall
+    file: grey_stone_horizontal_wall.png
+  - name: grey_stone_vertical_wall
+    file: grey_stone_vertical_wall.png
+  - name: grey_stone_corner
+    file: grey_stone_corner.png

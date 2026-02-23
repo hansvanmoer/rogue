@@ -4,3 +4,6 @@ labels_folder: labels
 textures_folder: textures
 texture_sets_folder: texture_sets
 tile_sets_folder: tile_sets
+building_components_folder: building_components
+building_templates_folder: building_templates
+building_styles_folder: building_styles

@@ -46,7 +46,7 @@ impl<'a> Graphics<'a> {
     /// Draws a texture
     ///
     pub fn draw_sprite(&mut self, texture: &Texture<'a>, bounds: Bounds2<f32>) -> Result<(), Error> {
-        let transformed_bounds = self.view.world_transform.transform_bounds(&bounds);
+        let transformed_bounds = self.view.view_transform.transform_bounds(&bounds);
         texture.render(&mut self.canvas, &transformed_bounds)
     }
 
@@ -58,21 +58,24 @@ impl<'a> Graphics<'a> {
         if max_col <= 0 {
             Err(Error::InvalidColumnCount(columns))
         } else {
+            let (origin_x, origin_y) = self.view.view_transform.transform_point(0.0,0.0);
+            let (dx, dy) = self.view.view_transform.transform_vector(
+                *texture_set.get_tile_size().get_width() as f32,
+                *texture_set.get_tile_size().get_height() as f32
+            );
             let mut row = 0;
             let mut col = 0;
             for index in indices {
-                let left = (col * texture_set.get_tile_size().get_width()) as f32;
-                let top = (row * texture_set.get_tile_size().get_height()) as f32;
-                let right = ((col + 1) * texture_set.get_tile_size().get_width()) as f32;
-                let bottom = ((row + 1) * texture_set.get_tile_size().get_height()) as f32;
-                let bounds = Bounds2::new(left, top, right, bottom);
-                let transformed_bounds = self.view.world_transform.transform_bounds(&bounds);
+                let left = origin_x + col as f32 * dx;
+                let top = origin_y + row as f32 * dy;
+                let bounds = Bounds2::new(left, left + dx, top, top + dy);
+                let transformed_bounds = self.view.view_transform.transform_bounds(&bounds);
                 texture_set.render(&mut self.canvas, index, &transformed_bounds, false)?;
+                
+                col = col + 1;
                 if col == max_col {
                     row = row + 1;
                     col = 0;
-                } else {
-                    col = col + 1;
                 }
             }
             Ok(())
@@ -106,6 +109,7 @@ impl<'a> Graphics<'a> {
 ///
 /// The view
 ///
+#[derive(Debug, PartialEq)]
 pub struct View {
     ///
     /// The world x coordinate of the center of the view

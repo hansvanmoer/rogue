@@ -1,0 +1,6 @@
+components:
+  - name: grey_stone_wall
+    kind: Wall
+    horizontal_texture: grey_stone_horizontal_wall
+    vertical_texture: grey_stone_vertical_wall
+    corner_texture: grey_stone_corner

@@ -1,0 +1,5 @@
+styles:
+  - name: grey_stone
+    variable_assignments:
+      - name: wall
+        component: grey_stone_wall

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use log::{debug, info};
 use regex::Regex;
 use serde::Deserialize;
+use crate::building::{BuildingComponent, BuildingStyle, BuildingTemplate};
 use crate::configuration::{Error as ConfigurationError, load_configuration};
 use crate::environment::Environment;
 use crate::localization::{Error as LocalizationError, load_labels_for_language};
@@ -47,6 +48,21 @@ pub struct ImmutableState<'a> {
     /// The module tile sets
     ///
     tile_sets: ResourceMap<TileSet>,
+
+    ///
+    /// The module building components
+    ///
+    building_components: ResourceMap<BuildingComponent>,
+
+    ///
+    /// The module building styles
+    ///
+    building_styles: ResourceMap<BuildingStyle>,
+
+    ///
+    /// The module building templates
+    ///
+    building_templates: ResourceMap<BuildingTemplate>,
 }
 
 impl<'a> ImmutableState<'a> {
@@ -91,6 +107,21 @@ impl<'a> ImmutableState<'a> {
         let tile_sets = TileSet::from_folder_path(&mut path, &texture_sets)?;
         path.pop();
 
+        path.push(&descriptor.building_components_folder);
+        debug!("Loading building components from path {}...", path.as_path().display());
+        let building_components = BuildingComponent::from_folder_path(&mut path)?;
+        path.pop();
+
+        path.push(&descriptor.building_templates_folder);
+        debug!("Loading building templates from path {}...", path.as_path().display());
+        let building_templates = BuildingTemplate::from_folder_path(&mut path)?;
+        path.pop();
+
+        path.push(&descriptor.building_styles_folder);
+        debug!("Loading building styles from path {}...", path.as_path().display());
+        let building_styles = BuildingStyle::from_folder_path(&mut path)?;
+        path.pop();
+
         debug!("All resources loaded.");
 
         Ok(ImmutableState {
@@ -100,6 +131,9 @@ impl<'a> ImmutableState<'a> {
             textures,
             texture_sets,
             tile_sets,
+            building_components,
+            building_styles,
+            building_templates,
         })
     }
 
@@ -179,6 +213,21 @@ struct ModuleDescriptor {
     /// The tile set folder
     ///
     tile_sets_folder: String,
+
+    ///
+    /// The building components folder
+    ///
+    building_components_folder: String,
+
+    ///
+    /// The building styles folder
+    ///
+    building_styles_folder: String,
+
+    ///
+    /// The building templates folder
+    ///
+    building_templates_folder: String,
 }
 
 ///
@@ -215,6 +264,22 @@ struct ModuleDescriptorConfig {
     /// The tile set folder
     ///
     tile_sets_folder: String,
+
+    ///
+    /// The building components folder
+    ///
+    building_components_folder: String,
+
+    ///
+    /// The building styles folder
+    ///
+    building_styles_folder: String,
+
+    ///
+    /// The building templates folder
+    ///
+    building_templates_folder: String,
+
 }
 
 impl ValidateOwned for ModuleDescriptorConfig {
@@ -245,6 +310,9 @@ impl ValidateOwned for ModuleDescriptorConfig {
         let textures_folder = validate_field("textures_folder", non_empty_string(&self.textures_folder))?;
         let texture_sets_folder = validate_field("texture_sets_folder", non_empty_string(&self.texture_sets_folder))?;
         let tile_sets_folder = validate_field("tile_sets_folder", non_empty_string(&self.tile_sets_folder))?;
+        let building_components_folder = validate_field("building_components_folder", non_empty_string(&self.building_components_folder))?;
+        let building_styles_folder = validate_field("building_styles_folder", non_empty_string(&self.building_styles_folder))?;
+        let building_templates_folder = validate_field("building_templates_folder", non_empty_string(&self.building_templates_folder))?;
         Ok(ModuleDescriptor {
             name,
             version,
@@ -252,6 +320,9 @@ impl ValidateOwned for ModuleDescriptorConfig {
             textures_folder,
             texture_sets_folder,
             tile_sets_folder,
+            building_components_folder,
+            building_styles_folder,
+            building_templates_folder,
         })
     }
 }
@@ -302,6 +373,11 @@ impl Display for Version {
 ///
 #[derive(Debug, PartialEq)]
 pub enum Error {
+    ///
+    /// A building error occurred
+    /// 
+    Building(crate::building::Error),
+    
     ///
     /// A configuration error occurred
     ///
@@ -387,5 +463,11 @@ impl From<MaterialError> for Error {
 impl From<TileSetError> for Error {
     fn from(e: TileSetError) -> Self {
         Error::TileSet(e)
+    }
+}
+
+impl From<crate::building::Error> for Error {
+    fn from(e: crate::building::Error) -> Self {
+        Error::Building(e)
     }
 }

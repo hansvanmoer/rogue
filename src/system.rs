@@ -81,9 +81,9 @@ impl SubSystems {
     ///
     /// Creates a new graphics handle
     /// 
-    pub fn create_graphics(&'_ self) -> Result<Graphics<'_>, Error> {
+    pub fn create_graphics(&'_ self, view: View) -> Result<Graphics<'_>, Error> {
         let canvas = self.canvas.try_borrow_mut().map_err(|_| Error::CanvasInUse)?;
-        Ok(Graphics::new(canvas, View::new(0.0, 0.0, 0, 1.0, 0)))
+        Ok(Graphics::new(canvas, view))
     }
     
     ///

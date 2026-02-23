@@ -1,6 +1,10 @@
 use std::collections::HashMap;
-
+use std::path::PathBuf;
+use log::{debug, error};
+use serde::de::DeserializeOwned;
+use crate::configuration::load_configuration;
 use crate::resource::Error::DuplicateName;
+use crate::validation::ValidateOwned;
 
 ///
 /// A resource ID type
@@ -203,6 +207,108 @@ impl<T> From<ResourceMap<T>> for ResourceBuffer<T> {
             names,
         }
     }
+}
+
+///
+/// A simple resource descriptor
+///
+pub trait ResourceDescriptor: Sized {
+    ///
+    /// The error type for resource loading errors
+    ///
+    type Error: From<crate::configuration::Error> + From<Error> + From<crate::validation::Error>;
+
+    ///
+    /// The configuration type
+    ///
+    type Configuration: DeserializeOwned + ValidateOwned<Output = Self>;
+
+    ///
+    /// The state type for any immutable state used to load resources
+    ///
+    type State;
+
+    ///
+    /// The resource type
+    ///
+    type Resource: LoadableResource<Self, Self::State, Self::Error>;
+
+    ///
+    /// The resource type name, used for logging and error messages
+    ///
+    fn resource_type_name() -> &'static str;
+
+    ///
+    /// The main descriptor file name
+    ///
+    fn main_descriptor_file_name() -> &'static str;
+
+    ///
+    /// Gets the list of files to load from the descriptor folder
+    ///
+    fn get_files(&self) -> &Vec<String>;
+
+    ///
+    /// Gets the list of folders to load from the descriptor folder
+    ///
+    fn get_folders(&self) -> &Vec<String>;
+
+    ///
+    /// Loads all resources from a folder
+    ///
+    fn from_folder_path(state: &Self::State, path: &mut PathBuf) -> Result<ResourceMap<Self::Resource>, Self::Error> {
+        debug!("Loading {} resources from folder {} recursively", Self::resource_type_name(), path.display());
+        let mut resources = ResourceMap::new();
+        Self::from_folder_path_recursive(&mut resources, state, path)?;
+        debug!("Loaded {} {} resources from folders", resources.len(), Self::resource_type_name());
+        Ok(resources)
+    }
+
+    ///
+    /// Loads all resources from a folder recursively
+    ///
+    fn from_folder_path_recursive(
+        resources: &mut ResourceMap<Self::Resource>,
+        state: &Self::State,
+        path: &mut PathBuf,
+    ) -> Result<(), Self::Error> {
+        let resource_name= Self::resource_type_name();
+        let file_name = Self::main_descriptor_file_name();
+        debug!("Loading {} descriptor from folder {}", resource_name, path.display());
+        path.push(file_name);
+        path.set_extension("yaml");
+        let config: Self::Configuration = load_configuration(&path)?;
+        path.pop();
+        let descriptor = config.validate_owned()?;
+
+        if !descriptor.get_folders().is_empty() {
+            debug!("Loading {} resources from {} subfolders...", resource_name, descriptor.get_folders().len());
+            for folder in descriptor.get_folders() {
+                path.push(folder);
+                if path.is_dir() {
+                    Self::from_folder_path_recursive(resources, state, path)?;
+                    path.pop();
+                } else {
+                    error!("no such folder: {}", path.display());
+                    Err(crate::configuration::Error::IOError(format!("no such folder: {}", path.display())))?;
+                }
+            }
+        }
+
+        debug!("Loading {} resources from folder {}", resource_name, path.display());
+        Self::Resource::load(resources, state, descriptor)
+    }
+}
+
+///
+/// A resource that can be loaded from a descriptor
+///
+pub trait LoadableResource<D, S, E>: Sized {
+
+    ///
+    /// Loads a resource from a descriptor and a given immutable state into a resource map
+    ///
+    fn load(resources: &mut ResourceMap<Self>, state: &S, descriptor: D) -> Result<(), E>;
 }
 
 ///
