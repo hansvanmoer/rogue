@@ -1,58 +1,240 @@
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use serde::Deserialize;
 use crate::configuration::{Error as ConfigurationError};
 use crate::metrics::NonZeroDimensions3;
-use crate::resource::{Error as ResourceError, LoadableResource, ResourceDescriptor, ResourceMap};
+use crate::resource::{Error as ResourceError, ResourceDescriptor, ResourceId, ResourceIdMap, ResourceMap};
+use crate::texture::Texture;
 use crate::validation::{non_empty_string, validate_field, validate_optional_vec_field, Error as ValidationError, ValidateOwned};
 
-pub struct BuildingComponent {}
+///
+/// A building component
+///
+pub struct BuildingComponent {
+    ///
+    /// The component name
+    ///
+    name: String,
+
+    ///
+    /// The kind of component
+    ///
+    kind: ComponentKind,
+
+    ///
+    /// The horizontal (left <-> right) texture
+    ///
+    horizontal_texture: ResourceId,
+
+    ///
+    /// The vertical (up <-> down) texture
+    ///
+    vertical_texture: ResourceId,
+
+    ///
+    /// The (left) corner texture
+    ///
+    corner_texture: ResourceId,
+}
 
 impl BuildingComponent {
     ///
     /// Loads the building components
     ///
-    pub fn from_folder_path(path: &mut PathBuf) -> Result<ResourceMap<Self>, Error> {
-        ComponentsDescriptor::from_folder_path(&(), path)
+    pub fn from_folder_path<'a>(path: &mut PathBuf, textures: &ResourceMap<Texture<'a>>) -> Result<ResourceMap<Self>, Error> {
+        ComponentsDescriptor::from_folder_path(path, &|resources, descriptor| {
+            for component in descriptor.components {
+                let kind = component.kind;
+                let horizontal_texture = textures.get_required_id_by_name(&component.horizontal_texture)?;
+                let vertical_texture = textures.get_required_id_by_name(&component.vertical_texture)?;
+                let corner_texture = textures.get_required_id_by_name(&component.corner_texture)?;
+                resources.insert(
+                    component.name.clone(),
+                    BuildingComponent {
+                        name: component.name.clone(),
+                        kind,
+                        horizontal_texture,
+                        vertical_texture,
+                        corner_texture,
+                    }
+                );
+            }
+            Ok(())
+        })
     }
 }
 
-impl LoadableResource<ComponentsDescriptor, (), Error> for BuildingComponent {
-    fn load(resources: &mut ResourceMap<Self>, _state: &(), descriptor: ComponentsDescriptor) -> Result<(), Error> {
-        Ok(())
-    }
+///
+/// A building style
+///
+pub struct BuildingStyle {
+    ///
+    /// The name of the style
+    ///
+    name: String,
+
+    ///
+    /// The variable assignments
+    ///
+    variable_assignments: HashMap<String, VariableAssignment>,
 }
 
-pub struct BuildingStyle {}
+///
+/// A variable assignment in a building style
+///
+struct VariableAssignment {
+    ///
+    /// The component kind
+    ///
+    kind: ComponentKind,
+
+    ///
+    /// The component resource ID
+    ///
+    component_id: ResourceId,
+}
 
 impl BuildingStyle {
     ///
     /// Loads the building styles
     ///
-    pub fn from_folder_path(path: &mut PathBuf) -> Result<ResourceMap<Self>, Error> {
-        StylesDescriptor::from_folder_path(&(), path)
+    pub fn from_folder_path(path: &mut PathBuf, components: &ResourceMap<BuildingComponent>) -> Result<ResourceMap<Self>, Error> {
+        StylesDescriptor::from_folder_path(path, &|resources, descriptor| {
+            for style in descriptor.styles.iter() {
+                let mut variable_assignments = HashMap::new();
+                for assignment in style.variable_assignments.iter() {
+                    let (component_id, component) = components.get_required_entry_by_name(&assignment.component)?;
+                    let kind = component.kind;
+                    variable_assignments.insert(assignment.name.clone(), VariableAssignment {
+                        kind,
+                        component_id,
+                    });
+                }
+                resources.insert(style.name.clone(), BuildingStyle {
+                    name: style.name.clone(),
+                    variable_assignments,
+                });
+            }
+            Ok(())
+        })
     }
 }
 
-impl LoadableResource<StylesDescriptor, (), Error> for BuildingStyle {
-    fn load(resources: &mut ResourceMap<Self>, _state: &(), descriptor: StylesDescriptor) -> Result<(), Error> {
-        Ok(())
-    }
+///
+/// A building template
+///
+pub struct BuildingTemplate {
+    ///
+    /// The template name
+    ///
+    name: String,
+
+    ///
+    /// The default style to use
+    ///
+    default_style_id: ResourceId,
+
+    ///
+    /// Variable components in the template
+    ///
+    variable_components: Vec<VariableComponent>,
+
+    ///
+    /// The list of commands to construct the template
+    ///
+    commands: Vec<Command>,
 }
 
-pub struct BuildingTemplate {}
+///
+/// The variable component in a building template
+///
+struct VariableComponent {
+    ///
+    /// The variable name
+    ///
+    name: String,
+    ///
+    /// The variable component kind
+    ///
+    kind: ComponentKind,
+}
 
-impl BuildingTemplate {
+///
+/// A template command
+///
+struct Command {
+    ///
+    /// The component to place
+    ///
+    component: CommandVariable,
+
+    ///
+    /// The wall box to construct
+    ///
+    wall_box: WallBox,
+}
+
+type WallBox = WallBoxDescriptor;
+
+///
+/// A command variable
+///
+enum CommandVariable {
+    ///
+    /// The component is statically defined
+    ///
+    Static(ResourceId),
+
+    ///
+    /// The component is a variable
+    ///
+    Variable(usize),
+}
+
+impl<'a> BuildingTemplate {
     ///
     /// Loads the building styles
     ///
-    pub fn from_folder_path(path: &mut PathBuf) -> Result<ResourceMap<Self>, Error> {
-        TemplatesDescriptor::from_folder_path(&(), path)
-    }
-}
-
-impl LoadableResource<TemplatesDescriptor, (), Error> for BuildingTemplate {
-    fn load(resources: &mut ResourceMap<Self>, _state: &(), descriptor: TemplatesDescriptor) -> Result<(), Error> {
-        Ok(())
+    pub fn from_folder_path(path: &mut PathBuf, components: &ResourceMap<BuildingComponent>, styles: &ResourceMap<BuildingStyle>) -> Result<ResourceMap<Self>, Error> {
+        TemplatesDescriptor::from_folder_path(path, &|resources, descriptor| {
+            for template in descriptor.templates.iter() {
+                let name = template.name.clone();
+                let (default_style_id, default_style) = styles.get_required_entry_by_name(&template.default_style)?;
+                let mut variable_ids = HashMap::new();
+                let mut variable_components = Vec::new();
+                for variable_component in template.variable_components.iter() {
+                    let id = variable_components.len();
+                    variable_components.push(match default_style.variable_assignments.get(&variable_component.name) {
+                        Some(variable_assignment) => {
+                            if variable_assignment.kind != variable_component.kind {
+                                Err(Error::MismatchedVariableKind(variable_component.name.clone()))
+                            } else {
+                                Ok(VariableComponent {
+                                    name: variable_component.name.clone(),
+                                    kind: variable_component.kind,
+                                })
+                            }
+                        },
+                        None =>{
+                            Err(Error::VariableNotInDefaultStyle(variable_component.name.clone()))
+                        }
+                    }?);
+                    variable_ids.insert(variable_component.name.clone(), id);
+                }
+                let mut commands = Vec::new();
+                for command in template.commands.iter() {
+                    let component = match variable_ids.get(&command.component) {
+                        Some(variable_id ) => CommandVariable::Variable(*variable_id),
+                        None => CommandVariable::Static(components.get_required_id_by_name(&command.component)?),
+                    };
+                    commands.push(Command {
+                        component,
+                        wall_box: command.wall_box.clone(),
+                    })
+                }
+            }
+            Ok(())
+        })
     }
 }
 
@@ -71,6 +253,11 @@ pub enum Error {
     IO(String),
 
     ///
+    /// A variable component is defined differently in the default style and in the template
+    ///
+    MismatchedVariableKind(String),
+
+    ///
     /// A resource error occurred
     ///
     Resource(ResourceError),
@@ -79,6 +266,11 @@ pub enum Error {
     /// A validation error occurred
     ///
     Validation(ValidationError),
+
+    ///
+    /// A variable component is not defined in the default style
+    ///
+    VariableNotInDefaultStyle(String),
 }
 
 impl From<ConfigurationError> for Error {
@@ -134,7 +326,7 @@ struct ComponentsDescriptor {
 impl ResourceDescriptor for ComponentsDescriptor {
     type Error = Error;
     type Configuration = ComponentsConfig;
-    type State = ();
+    type State = ResourceIdMap;
     type Resource = BuildingComponent;
 
     fn resource_type_name() -> &'static str {
@@ -174,7 +366,7 @@ struct TemplatesDescriptor {
     templates: Vec<TemplateDescriptor>,
 }
 
-impl ResourceDescriptor for TemplatesDescriptor {
+impl<'a> ResourceDescriptor for TemplatesDescriptor {
     type Error = Error;
     type Configuration = TemplatesConfig;
     type State = ();
@@ -217,10 +409,10 @@ struct StylesDescriptor {
     styles: Vec<StyleDescriptor>,
 }
 
-impl ResourceDescriptor for StylesDescriptor {
+impl<'a> ResourceDescriptor for StylesDescriptor {
     type Error = Error;
     type Configuration = StylesConfig;
-    type State = ();
+    type State = ResourceIdMap;
     type Resource = BuildingStyle;
 
     fn resource_type_name() -> &'static str {
@@ -281,10 +473,19 @@ struct TemplateDescriptor {
     name: String,
 
     ///
+    /// The default style to use
+    ///
+    default_style: String,
+
+    ///
     /// Variable components
     ///
     variable_components: Vec<VariableComponentDescriptor>,
 
+    ///
+    /// The commands to construct the template
+    ///
+    commands: Vec<CommandDescriptor>,
 }
 
 ///
@@ -321,7 +522,7 @@ struct CommandDescriptor {
 ///
 /// The wall box descriptor
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct WallBoxDescriptor {
     ///
     /// The x coordinate
@@ -347,6 +548,11 @@ struct WallBoxDescriptor {
 ///
 #[derive(Debug, PartialEq)]
 struct StyleDescriptor {
+    ///
+    /// The style name
+    ///
+    name: String,
+
     ///
     /// Variable assignments
     ///
@@ -524,9 +730,19 @@ struct TemplateConfig {
     name: String,
 
     ///
+    /// The default style to use
+    ///
+    default_style: String,
+
+    ///
     /// Variable components
     ///
     variable_components: Option<Vec<VariableComponentConfig>>,
+
+    ///
+    /// Commands to construct the template
+    ///
+    commands: Option<Vec<CommandConfig>>,
 }
 
 impl ValidateOwned for TemplateConfig {
@@ -535,7 +751,9 @@ impl ValidateOwned for TemplateConfig {
     fn validate_owned(&self) -> Result<Self::Output, ValidationError> {
         Ok(TemplateDescriptor {
             name: validate_field("name", non_empty_string(&self.name))?,
+            default_style: validate_field("default_style", non_empty_string(&self.default_style))?,
             variable_components: validate_optional_vec_field("variable_components", &self.variable_components, ValidateOwned::validate_owned)?,
+            commands: validate_optional_vec_field("commands", &self.commands, ValidateOwned::validate_owned)?,
         })
     }
 }
@@ -633,7 +851,7 @@ impl ValidateOwned for WallBoxConfig {
     type Output = WallBoxDescriptor;
 
     fn validate_owned(&self) -> Result<Self::Output, ValidationError> {
-        let size = NonZeroDimensions3::new(self.x1 - self.x2, self.y1 - self.y2, self.z1 - self.z2).map_err(|_| ValidationError::from_str("invalid wall box bounds"))?;
+        let size = NonZeroDimensions3::new((self.x1 - self.x2).abs(), (self.y1 - self.y2).abs(), (self.z1 - self.z2).abs()).map_err(|_| ValidationError::from_str("invalid wall box bounds"))?;
         let x = self.x1.min(self.x2);
         let y = self.y1.min(self.y2);
         let z = self.z1.min(self.z2);
@@ -652,6 +870,11 @@ impl ValidateOwned for WallBoxConfig {
 #[derive(Debug, PartialEq, Deserialize)]
 struct StyleConfig {
     ///
+    /// The name of the style
+    ///
+    name: String,
+
+    ///
     /// Variable assignments
     ///
     variable_assignments: Option<Vec<VariableAssignmentConfig>>,
@@ -662,7 +885,8 @@ impl ValidateOwned for StyleConfig {
 
     fn validate_owned(&self) -> Result<Self::Output, ValidationError> {
         Ok(StyleDescriptor {
-            variable_assignments: validate_optional_vec_field("", &self.variable_assignments, ValidateOwned::validate_owned)?,
+            name: validate_field("name", non_empty_string(&self.name))?,
+            variable_assignments: validate_optional_vec_field("variable_assignments", &self.variable_assignments, ValidateOwned::validate_owned)?,
         })
     }
 }

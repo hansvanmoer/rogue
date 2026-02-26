@@ -613,11 +613,6 @@ pub enum Error {
     /// No subtexture was found for this index
     ///
     NotFoundForIndex(SubTextureIndex),
-
-    ///
-    /// Graphics error
-    ///
-    Graphics(String),
 }
 
 impl From<ConfigurationError> for Error {

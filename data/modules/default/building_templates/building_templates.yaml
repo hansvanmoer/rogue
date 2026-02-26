@@ -1,5 +1,6 @@
 templates:
   - name: "unroofed_6x6x1"
+    default_style: grey_stone
     variable_components:
       - name: wall
         kind: Wall

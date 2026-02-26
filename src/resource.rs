@@ -12,20 +12,56 @@ use crate::validation::ValidateOwned;
 pub type ResourceId = usize;
 
 ///
-/// A resource ID and name
+/// A map of resource names to ID's
 ///
-#[derive(Debug, PartialEq)]
-pub struct ResourceRef {
-    id: ResourceId,
-    name: String,
+pub struct ResourceIdMap {
+    map: HashMap<String, ResourceId>,
 }
 
-impl ResourceRef {
+impl ResourceIdMap {
+    
     ///
-    /// Creates a new resource reference
+    /// Creates a new resource ID map
     /// 
-    pub fn new(id: ResourceId, name: String) -> ResourceRef {
-        ResourceRef { id, name }
+    fn new() -> ResourceIdMap {
+        ResourceIdMap {
+            map: HashMap::new()
+        }
+    }
+    
+    ///
+    /// Insert an ID into the resource ID map
+    /// 
+    fn insert(&mut self, name: String, id: ResourceId) -> Option<ResourceId> {
+        self.map.insert(name, id)
+    }
+
+    ///
+    /// The amount of ID's in the resource ID map
+    /// 
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
+    
+    ///
+    /// Gets a resource ID by name
+    /// 
+    pub fn get_by_name(&self, name: &str) -> Option<ResourceId> {
+        self.map.get(name).copied()
+    }
+    
+    ///
+    /// Gets a required resource ID by name
+    /// 
+    pub fn get_required_by_name(&self, name: &str) -> Result<ResourceId, Error> {
+        self.get_by_name(name).ok_or_else(|| Error::NotFoundForName(String::from(name)))
+    }
+    
+    ///
+    /// Whether the resource ID map contains a name
+    /// 
+    pub fn contains_name(&self, name: &str) -> bool {
+        self.map.contains_key(name)
     }
 }
 
@@ -36,7 +72,7 @@ pub struct ResourceMap<T> {
     ///
     /// Resources by name
     ///
-    by_name: HashMap<String, usize>,
+    by_name: ResourceIdMap,
 
     ///
     /// Resources by ID
@@ -50,16 +86,23 @@ impl<T> ResourceMap<T> {
     ///
     pub fn new() -> Self {
         ResourceMap {
-            by_name: HashMap::new(),
+            by_name: ResourceIdMap::new(),
             by_id: Vec::new(),
         }
     }
 
     ///
+    /// Returns the ID map
+    /// 
+    pub fn get_resource_id_map(&self) -> &ResourceIdMap {
+        &self.by_name
+    }
+    
+    ///
     /// Inserts a new resource with a unique name
     ///
     pub fn insert_if_not_present(&mut self, name: String, resource: T) -> Result<ResourceId, Error> {
-        if self.by_name.contains_key(&name) {
+        if self.by_name.contains_name(&name) {
             Err(DuplicateName(name))
         } else {
             let id = self.by_id.len();
@@ -74,7 +117,7 @@ impl<T> ResourceMap<T> {
     ///
     pub fn insert(&mut self, name: String, resource: T) -> ResourceId {
         let len = self.by_id.len();
-        let id = self.by_name.get(&name).map(|i| *i).unwrap_or(len);
+        let id = self.by_name.get_by_name(&name).unwrap_or(len);
         if id == len {
             let id = self.by_id.len();
             self.by_id.push(resource);
@@ -89,7 +132,7 @@ impl<T> ResourceMap<T> {
     /// Gets a resource by name
     ///
     pub fn get_id_by_name(&self, name: &str) -> Option<usize> {
-        self.by_name.get(name).copied()
+        self.by_name.get_by_name(name)
     }
 
     ///
@@ -99,20 +142,6 @@ impl<T> ResourceMap<T> {
         self.get_id_by_name(name).ok_or_else(|| Error::NotFoundForName(String::from(name)))
     }
 
-    ///
-    /// Creates a resource reference
-    /// 
-    pub fn create_resource_ref(&self, name: &str) -> Result<ResourceRef, Error> {
-        Ok(ResourceRef::new(self.get_required_id_by_name(name)?, String::from(name)))
-    }
-    
-    ///
-    /// Fetches a resource by reference
-    /// 
-    pub fn get_required_by_ref(&self, resource_ref: &ResourceRef) -> Result<&T, Error> {
-        self.get_by_id(resource_ref.id).ok_or_else(|| Error::NotFoundForId(resource_ref.id))
-    }
-    
     ///
     /// Gets a resource by ID
     ///
@@ -131,7 +160,7 @@ impl<T> ResourceMap<T> {
     /// Gets a resource by name
     ///
     pub fn get_by_name(&self, name: &str) -> Option<&T> {
-        self.by_name.get(name).and_then(|id| self.by_id.get(*id))
+        self.by_name.get_by_name(name).and_then(|id| self.by_id.get(id))
     }
 
     ///
@@ -142,70 +171,18 @@ impl<T> ResourceMap<T> {
     }
 
     ///
+    /// Gets a resource by name or an error
+    ///
+    pub fn get_required_entry_by_name(&self, name: &str) -> Result<(ResourceId, &T), Error> {
+        let id = self.get_required_id_by_name(name)?;
+        Ok((id, &self.by_id[id]))
+    }
+    
+    ///
     /// The number of resources
     ///
     pub fn len(&self) -> usize {
         self.by_id.len()
-    }
-}
-
-impl<T> From<ResourceBuffer<T>> for ResourceMap<T> {
-    fn from(mut buffer: ResourceBuffer<T>) -> Self {
-        let len = buffer.names.len();
-        let mut by_name = HashMap::with_capacity(len);
-        let mut id = 0;
-        buffer.names.drain(0..len).for_each(|name| {
-            by_name.insert(name, id);
-            id += 1;
-        });
-        ResourceMap {
-            by_name,
-            by_id: buffer.resources,
-        }
-    }
-}
-
-///
-/// Stores resources by ID and names to reconstruct the resource map when saving
-///
-pub struct ResourceBuffer<T> {
-    ///
-    /// Resources in a contiguous buffer
-    ///
-    resources: Vec<T>,
-
-    ///
-    /// The names in a contiguous buffer
-    ///
-    names: Vec<String>,
-}
-
-impl<T> ResourceBuffer<T> {
-    ///
-    /// Gets a resource by ID
-    ///
-    pub fn get_by_id(&self, id: ResourceId) -> Option<&T> {
-        self.resources.get(id)
-    }
-
-    ///
-    /// The number of resources
-    ///
-    pub fn len(&self) -> usize {
-        self.resources.len()
-    }
-}
-
-impl<T> From<ResourceMap<T>> for ResourceBuffer<T> {
-    fn from(mut map: ResourceMap<T>) -> Self {
-        let mut names = vec![String::new(); map.by_name.len()];
-        map.by_name.drain().for_each(|(name, id)| {
-            names[id] = name;
-        });
-        ResourceBuffer {
-            resources: map.by_id,
-            names,
-        }
     }
 }
 
@@ -231,7 +208,7 @@ pub trait ResourceDescriptor: Sized {
     ///
     /// The resource type
     ///
-    type Resource: LoadableResource<Self, Self::State, Self::Error>;
+    type Resource;
 
     ///
     /// The resource type name, used for logging and error messages
@@ -256,10 +233,10 @@ pub trait ResourceDescriptor: Sized {
     ///
     /// Loads all resources from a folder
     ///
-    fn from_folder_path(state: &Self::State, path: &mut PathBuf) -> Result<ResourceMap<Self::Resource>, Self::Error> {
+    fn from_folder_path<F: Fn(&mut ResourceMap<Self::Resource>, <Self::Configuration as ValidateOwned>::Output) -> Result<(), Self::Error>>(path: &mut PathBuf, load: &F) -> Result<ResourceMap<Self::Resource>, Self::Error> {
         debug!("Loading {} resources from folder {} recursively", Self::resource_type_name(), path.display());
         let mut resources = ResourceMap::new();
-        Self::from_folder_path_recursive(&mut resources, state, path)?;
+        Self::from_folder_path_recursive(&mut resources, path, load)?;
         debug!("Loaded {} {} resources from folders", resources.len(), Self::resource_type_name());
         Ok(resources)
     }
@@ -267,10 +244,10 @@ pub trait ResourceDescriptor: Sized {
     ///
     /// Loads all resources from a folder recursively
     ///
-    fn from_folder_path_recursive(
+    fn from_folder_path_recursive<F: Fn(&mut ResourceMap<Self::Resource>, <Self::Configuration as ValidateOwned>::Output) -> Result<(), Self::Error>>(
         resources: &mut ResourceMap<Self::Resource>,
-        state: &Self::State,
         path: &mut PathBuf,
+        load: &F
     ) -> Result<(), Self::Error> {
         let resource_name= Self::resource_type_name();
         let file_name = Self::main_descriptor_file_name();
@@ -286,7 +263,7 @@ pub trait ResourceDescriptor: Sized {
             for folder in descriptor.get_folders() {
                 path.push(folder);
                 if path.is_dir() {
-                    Self::from_folder_path_recursive(resources, state, path)?;
+                    Self::from_folder_path_recursive(resources, path, load)?;
                     path.pop();
                 } else {
                     error!("no such folder: {}", path.display());
@@ -296,19 +273,8 @@ pub trait ResourceDescriptor: Sized {
         }
 
         debug!("Loading {} resources from folder {}", resource_name, path.display());
-        Self::Resource::load(resources, state, descriptor)
+        load(resources, descriptor)
     }
-}
-
-///
-/// A resource that can be loaded from a descriptor
-///
-pub trait LoadableResource<D, S, E>: Sized {
-
-    ///
-    /// Loads a resource from a descriptor and a given immutable state into a resource map
-    ///
-    fn load(resources: &mut ResourceMap<Self>, state: &S, descriptor: D) -> Result<(), E>;
 }
 
 ///
@@ -356,19 +322,12 @@ mod tests {
         assert_eq!(Some(2), map.get_id_by_name("name2"));
         assert_eq!(None, map.get_id_by_name("name3"));
 
-        let buffer: ResourceBuffer<String> = map.into();
-        assert_eq!(3, buffer.len());
-        assert_eq!(Some(&String::from("resource0")), buffer.get_by_id(0));
-        assert_eq!(Some(&String::from("resource1")), buffer.get_by_id(1));
-        assert_eq!(Some(&String::from("resource2")), buffer.get_by_id(2));
-        assert_eq!(None, buffer.get_by_id(3));
-
-        let map: ResourceMap<String> = buffer.into();
-        assert_eq!(3, map.len());
-        assert_eq!(Some(0), map.get_id_by_name("name0"));
-        assert_eq!(Some(1), map.get_id_by_name("name1"));
-        assert_eq!(Some(2), map.get_id_by_name("name2"));
-        assert_eq!(None, map.get_id_by_name("name3"));
+        let id_map = map.get_resource_id_map();
+        assert_eq!(3, id_map.len());
+        assert_eq!(Some(0), id_map.get_by_name("name0"));
+        assert_eq!(Some(1), id_map.get_by_name("name1"));
+        assert_eq!(Some(2), id_map.get_by_name("name2"));
+        assert_eq!(None, id_map.get_by_name("name3"));
     }
 
 }

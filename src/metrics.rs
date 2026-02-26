@@ -197,8 +197,8 @@ impl<T: AdditiveGroup + Debug> NonZeroDimensions2<T> {
 ///
 /// A width, height tuple that is positive and non zero
 ///
-#[derive(Debug, PartialEq)]
-pub struct NonZeroDimensions3<T: AdditiveGroup + Debug> {
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NonZeroDimensions3<T: AdditiveGroup + Debug + Clone + Copy> {
     ///
     /// The width along the x axis
     ///
@@ -215,7 +215,7 @@ pub struct NonZeroDimensions3<T: AdditiveGroup + Debug> {
     depth: T,
 }
 
-impl<T: AdditiveGroup + Debug> NonZeroDimensions3<T> {
+impl<T: AdditiveGroup + Clone + Copy + Debug> NonZeroDimensions3<T> {
     ///
     /// Constructs a new dimension object, if possible
     ///

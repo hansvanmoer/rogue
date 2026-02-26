@@ -109,17 +109,18 @@ impl<'a> ImmutableState<'a> {
 
         path.push(&descriptor.building_components_folder);
         debug!("Loading building components from path {}...", path.as_path().display());
-        let building_components = BuildingComponent::from_folder_path(&mut path)?;
+        let building_components = BuildingComponent::from_folder_path(&mut path, &textures)?;
         path.pop();
 
-        path.push(&descriptor.building_templates_folder);
-        debug!("Loading building templates from path {}...", path.as_path().display());
-        let building_templates = BuildingTemplate::from_folder_path(&mut path)?;
-        path.pop();
 
         path.push(&descriptor.building_styles_folder);
         debug!("Loading building styles from path {}...", path.as_path().display());
-        let building_styles = BuildingStyle::from_folder_path(&mut path)?;
+        let building_styles = BuildingStyle::from_folder_path(&mut path, &building_components)?;
+        path.pop();
+
+            path.push(&descriptor.building_templates_folder);
+        debug!("Loading building templates from path {}...", path.as_path().display());
+        let building_templates = BuildingTemplate::from_folder_path(&mut path, &building_components, &building_styles)?;
         path.pop();
 
         debug!("All resources loaded.");
