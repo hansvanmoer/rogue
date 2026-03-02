@@ -16,6 +16,7 @@ mod color;
 mod transform;
 mod building;
 mod sparse_array;
+mod scene;
 
 use std::thread::sleep;
 use std::time::Duration;

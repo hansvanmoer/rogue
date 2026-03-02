@@ -1,3 +1,4 @@
+use std::cmp::{max, min};
 use std::fmt::Debug;
 use std::ops::Sub;
 
@@ -19,6 +20,59 @@ impl AdditiveGroup for i32 {
 
 impl AdditiveGroup for f32 {
     const IDENTITY: Self = 0.0;
+}
+
+///
+/// A vector in 3D space
+///
+#[derive(Debug, PartialEq)]
+pub struct Vector3<T: Copy + Debug + PartialEq> {
+    ///
+    /// The x coordinate
+    ///
+    x: T,
+
+    ///
+    /// The y coordinate
+    ///
+    y: T,
+
+    ///
+    /// The z coordinate
+    ///
+    z: T,
+}
+
+impl<T: Copy + Debug + PartialEq> Vector3<T> {
+
+    ///
+    /// Creates a new vector
+    ///
+    pub fn new(x: T, y: T, z: T) -> Self {
+        Vector3 { x, y, z }
+    }
+
+    ///
+    /// Fetches the x coordinate
+    ///
+    pub fn get_x(&self) -> T {
+        self.x
+    }
+
+    ///
+    /// Fetches the y coordinate
+    ///
+    pub fn get_y(&self) -> T {
+        self.y
+    }
+
+    ///
+    /// Fetches the z coordinate
+    ///
+    pub fn get_z(&self) -> T {
+        self.z
+    }
+
 }
 
 #[derive(Debug, PartialEq)]
@@ -105,6 +159,132 @@ impl<T: Copy + Debug + PartialEq + PartialOrd + Sub> Bounds2<T> {
     /// 
     pub fn get_y_difference(&self) -> T::Output {
         self.max_y - self.min_y
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Bounds3<T: Copy + Debug + PartialEq + PartialOrd + Sub> {
+    ///
+    /// The left border
+    ///
+    min_x: T,
+
+    ///
+    /// THe right border
+    ///
+    max_x: T,
+
+    ///
+    /// The top border
+    ///
+    min_y: T,
+
+    ///
+    /// The bottom border
+    ///
+    max_y: T,
+
+    ///
+    /// The minimum z coordinate
+    ///
+    min_z: T,
+
+    ///
+    /// The maximum z coordinate
+    ///
+    max_z: T,
+}
+
+impl<T: Copy + Debug + PartialEq + PartialOrd + Sub> Bounds3<T> {
+
+    ///
+    /// Constructs a new bounding rectangle
+    ///
+    pub fn new(x1: T, x2: T, y1: T, y2: T, z1: T, z2: T) -> Self {
+        let (min_x, max_x) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
+        let (min_y, max_y) = if y1 <= y2 { (y1, y2) } else { (y2, y1) };
+        let (min_z, max_z) = if z1 <= z2 { (z1, z2) } else { (z2, z1) };
+
+        Bounds3 {
+            min_x,
+            max_x,
+            min_y,
+            max_y,
+            min_z,
+            max_z,
+        }
+    }
+
+    ///
+    /// The min x coordinate
+    ///
+    pub fn get_min_x(&self) -> T {
+        self.min_x
+    }
+
+    ///
+    /// The min x coordinate
+    ///
+    pub fn get_max_x(&self) -> T {
+        self.max_x
+    }
+
+    ///
+    /// The min y coordinate
+    ///
+    pub fn get_min_y(&self) -> T {
+        self.min_y
+    }
+
+    ///
+    /// The min y coordinate
+    ///
+    pub fn get_max_y(&self) -> T {
+        self.max_y
+    }
+
+    ///
+    /// The min z coordinate
+    ///
+    pub fn get_min_z(&self) -> T {
+        self.min_z
+    }
+
+    ///
+    /// The min z coordinate
+    ///
+    pub fn get_max_z(&self) -> T {
+        self.max_z
+    }
+
+    ///
+    /// The difference between the x coordinates
+    ///
+    pub fn get_x_difference(&self) -> T::Output {
+        self.max_x - self.min_x
+    }
+
+    ///
+    /// The difference between the y coordinates
+    ///
+    pub fn get_y_difference(&self) -> T::Output {
+        self.max_y - self.min_y
+    }
+
+    ///
+    /// The difference between the z coordinates
+    ///
+    pub fn get_z_difference(&self) -> T::Output {
+        self.max_z - self.min_z
+    }
+
+    ///
+    /// Checks whether the point is within the bounds
+    ///
+    pub fn point_is_within(&self, point: &Vector3<T>) -> bool {
+        point.get_x() >= self.min_x && point.get_x() <= self.max_x &&
+            point.get_y() >= self.min_y && point.get_y() <= self.max_y &&
+            point.get_z() >= self.min_z && point.get_z() <= self.max_z
     }
 }
 

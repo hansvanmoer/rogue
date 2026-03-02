@@ -1,11 +1,30 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use serde::Deserialize;
 use crate::configuration::{Error as ConfigurationError};
 use crate::metrics::NonZeroDimensions3;
 use crate::resource::{Error as ResourceError, ResourceDescriptor, ResourceId, ResourceIdMap, ResourceMap};
+use crate::sparse_array::SparseArray;
 use crate::texture::Texture;
 use crate::validation::{non_empty_string, validate_field, validate_optional_vec_field, Error as ValidationError, ValidateOwned};
+
+pub struct Buildings<'a> {
+    buildings: SparseArray<Building<'a>>,
+    structures: SparseArray<Structure<'a>>,
+}
+
+struct Building<'a> {
+    template: &'a BuildingTemplate,
+    style: &'a BuildingStyle,
+    structures: Vec<usize>,
+}
+
+struct Structure<'a> {
+    component: &'a BuildingComponent,
+    x: i32,
+    y: i32,
+    z: i32,
+}
 
 ///
 /// A building component
