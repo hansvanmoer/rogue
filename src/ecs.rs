@@ -1,4 +1,5 @@
 use std::alloc::{Layout, LayoutError};
+use std::collections::BinaryHeap;
 use std::ptr::NonNull;
 
 pub type EntityId = usize;
@@ -43,6 +44,11 @@ pub struct World {
     /// The layout of a single entity
     ///
     layout: Layout,
+
+    ///
+    /// The free list
+    ///
+    free_list: BinaryHeap<usize>,
 }
 
 impl World {
@@ -71,17 +77,26 @@ impl World {
         Ok(())
     }
 
-    /**
-    * Inserts a new entity with a single component
-    */
+    ///
+    /// The next free ID
+    ///
+    fn next_free_id(&mut self) -> usize {
+        if let Some(id) = self.free_list.pop() {
+            id
+        } else {
+            self.amount
+        }
+    }
+
+    ///
+    /// Inserts a new entity with a single component
+    ///
     pub fn insert1<C0: Component>(&mut self, c0: C0) -> Result<EntityId, Error> {
         let column0 = self.find_column::<C0>()?;
         self.reserve_capacity()?;
-        let index = self.amount;
-        unsafe {
-            std::ptr::write(self.data.as_ptr().add(index * self.layout.size()) as * mut u32, self.columns[column0].mask);
-            std::ptr::write(self.data.as_ptr().add(index * self.layout.size() + self.columns[column0].offset) as *mut C0, c0);
-        }
+        let index = self.next_free_id();
+        self.set_mask(index, self.columns[column0].mask);
+        self.set_column(index, column0, c0);
         self.amount += 1;
         Ok(index)
     }
@@ -93,12 +108,10 @@ impl World {
         let column0 = self.find_column::<C0>()?;
         let column1 = self.find_column::<C1>()?;
         self.reserve_capacity()?;
-        let index = self.amount;
-        unsafe {
-            std::ptr::write(self.data.as_ptr().add(index * self.layout.size()) as * mut u32, self.columns[column0].mask | self.columns[column1].mask);
-            std::ptr::write(self.data.as_ptr().add(index * self.layout.size() + self.columns[column0].offset) as *mut C0, c0);
-            std::ptr::write(self.data.as_ptr().add(index * self.layout.size() + self.columns[column1].offset) as *mut C1, c1);
-        }
+        let index = self.next_free_id();
+        self.set_mask(index, self.columns[column0].mask | self.columns[column1].mask);
+        self.set_column(index, column0, c0);
+        self.set_column(index, column1, c1);
         self.amount += 1;
         Ok(index)
     }
@@ -128,17 +141,37 @@ impl World {
         })
     }
 
+    ///
+    /// Removes an entity and all its components
+    ///
+    pub fn remove(&mut self, id: EntityId) -> Result<(), Error> {
+        if id < self.capacity {
+            let mask = self.get_mask(id);
+            if mask == 0 {
+                Err(Error::NoEntity)
+            } else {
+                self.drop_element(id);
+                self.set_mask(id, 0);
+                self.free_list.push(id);
+                Ok(())
+            }
+        } else {
+            Err(Error::NoEntity)
+        }
+    }
+
+    ///
+    /// Clears the entire world
+    ///
     pub fn clear(&mut self) {
         for i in 0..self.amount {
             self.drop_element(i);
-            self.clear_element(i);
+            self.set_mask(i, 0);
         }
     }
 
     fn drop_element(&mut self, index: usize) {
-        let mask = unsafe {
-            (self.data.as_ptr().add(index * self.layout.size()) as * const u32).as_ref().unwrap_or(&0)
-        };
+        let mask = self.get_mask(index);
         for column in &self.columns {
             if mask & column.mask == column.mask {
                 let ptr = unsafe {
@@ -149,11 +182,23 @@ impl World {
         }
     }
 
-    fn clear_element(&mut self, index: usize) {
+    fn get_mask(&self, index: usize) -> u32 {
         unsafe {
-            if let Some(mask) = (self.data.as_ptr().add(index * self.layout.size()) as * mut u32).as_mut() {
-                *mask = 0;
+            *(self.data.as_ptr().add(index * self.layout.size()) as * const u32).as_ref().unwrap_or(&0)
+        }
+    }
+
+    fn set_mask(&mut self, index: usize, mask: u32) {
+        unsafe {
+            if let Some(m) = (self.data.add(index * self.layout.size()).as_ptr() as * mut u32).as_mut() {
+                *m = mask;
             }
+        }
+    }
+
+    fn set_column<C>(&mut self, index: usize, column_index: usize, component: C) {
+        unsafe {
+            std::ptr::write(self.data.add(index * self.layout.size()).add(self.columns[column_index].offset).as_ptr() as *mut C, component);
         }
     }
 
@@ -552,6 +597,11 @@ pub enum Error {
     NoComponents,
 
     ///
+    /// No entity for this ID
+    ///
+    NoEntity,
+
+    ///
     /// The number of supported components has been exceeded
     ///
     TooManyComponents,
@@ -645,6 +695,7 @@ impl WorldBuilder {
                 capacity: 0,
                 layout: layout.pad_to_align(),
                 header_layout,
+                free_list: BinaryHeap::new(),
             };
             if self.capacity > 0 {
                 world.set_capacity(self.capacity)?;
