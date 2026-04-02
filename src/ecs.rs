@@ -1,5 +1,6 @@
 use std::alloc::{Layout, LayoutError};
-use std::collections::BinaryHeap;
+use std::cell::RefCell;
+use std::collections::{BTreeSet, BinaryHeap};
 use std::ptr::NonNull;
 
 pub type EntityId = usize;
@@ -257,6 +258,71 @@ trait Query<'a> {
     fn max_amount(&self) -> usize;
 }
 
+pub struct SortedQuery<'a, Q: Query<'a>, O: Eq + Ord> {
+    query: Q,
+    order: RefCell<BTreeSet<SortedId<O>>>,
+    phantom_data: std::marker::PhantomData<&'a Q::Item>,
+}
+
+impl<'a, Q: Query<'a>, O: Eq + Ord> SortedQuery<'a, Q, O> {
+    fn new<F: Fn(Q::Item) -> O>(query: Q, sort: F) -> SortedQuery<'a, Q, O> {
+        let mut order = BTreeSet::new();
+        for i in 0..query.max_amount() {
+            if let Some(item)= query.get(i) {
+                order.insert(SortedId {
+                    id: i,
+                    ordinal: sort(item),
+                });
+            }
+        }
+        SortedQuery {
+            query,
+            order: RefCell::new(order),
+            phantom_data: std::marker::PhantomData,
+        }
+    }
+
+    pub fn into_iter(self) -> Iter<'a, Self> {
+        Iter::new(self)
+    }
+}
+
+impl<'a, Q: Query<'a>, O: Eq + Ord> Query<'a> for SortedQuery<'a, Q, O> {
+    type Item = Q::Item;
+
+    fn get(&self, id: EntityId) -> Option<Self::Item> {
+        self.order.borrow_mut().pop_first().and_then(|si| self.query.get(si.id))
+    }
+
+    fn max_amount(&self) -> usize {
+        self.query.max_amount()
+    }
+}
+
+struct SortedId<O: Eq + Ord> {
+    id: EntityId,
+    ordinal: O,
+}
+
+impl<O: Eq + Ord> PartialEq for SortedId<O> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<O: Eq + Ord> Eq for SortedId<O> {}
+
+impl<O: Eq + Ord> PartialOrd for SortedId<O> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<O: Eq + Ord> Ord for SortedId<O> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.ordinal.cmp(&other.ordinal)
+    }
+}
 
 struct Iter<'a, Q: Query<'a>> {
     query: Q,
@@ -357,6 +423,12 @@ impl<'a, C0: Component, F: Fn(&C0) -> bool> Query1<'a, C0, F> {
         Iter::new(self)
     }
 
+    ///
+    /// Creates a sorted query
+    ///
+    pub fn sorted<O: Ord + Eq, S: Fn(&C0) -> O>(self, order: S) -> SortedQuery<'a, Self, O> {
+        SortedQuery::new(self, order)
+    }
 }
 
 ///
@@ -442,6 +514,13 @@ impl<'a, C0: Component, C1: Component, F: Fn(&C0, &C1) -> bool> Query2<'a, C0, C
     ///
     pub fn into_iter(self) -> Iter<'a, Self> {
         Iter::new(self)
+    }
+
+    ///
+    /// Creates a sorted query
+    ///
+    pub fn sorted<O: Ord + Eq, S: Fn((&C0, &C1)) -> O>(self, order: S) -> SortedQuery<'a, Self, O> {
+        SortedQuery::new(self, order)
     }
 
 }
@@ -972,5 +1051,43 @@ mod tests {
         assert_eq!(1, *drop_check2.borrow_mut());
         assert_eq!(1, *drop_check3.borrow_mut());
         assert_eq!(1, *drop_check4.borrow_mut());
+    }
+
+    #[test]
+    fn test_sorted_query1() {
+        let mut builder = WorldBuilder::new();
+        builder.with_capacity(10);
+        builder.register_component::<Component1>().unwrap();
+        builder.register_component::<Component2>().unwrap();
+        let mut world = builder.build().expect("Expected world");
+        let drop_check1 = Rc::new(RefCell::new(0));
+        let entity1 = world.insert1(Component1{
+            a: 1,
+            b: 2,
+            drop_check: drop_check1.clone(),
+        }).unwrap();
+        let drop_check2 = Rc::new(RefCell::new(0));
+        let entity2 = world.insert1(Component1{
+            a: 2,
+            b: 4,
+            drop_check: drop_check2.clone(),
+        }).unwrap();
+        let mut iter = world.query1(|_: &Component1| true).unwrap().sorted(|e| - e.a).into_iter();
+        assert_eq!(Some(&Component1 {
+            a: 2,
+            b: 4,
+            drop_check: Rc::new(RefCell::new(0)),
+        }), iter.next());
+        assert_eq!(Some(&Component1 {
+            a: 1,
+            b: 2,
+            drop_check: Rc::new(RefCell::new(0)),
+        }), iter.next());
+        assert_eq!(None, iter.next());
+        
+        world.clear();
+
+        assert_eq!(1, *drop_check1.borrow_mut());
+        assert_eq!(1, *drop_check2.borrow_mut());
     }
 }
