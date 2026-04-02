@@ -153,6 +153,7 @@ impl World {
                 self.drop_element(id);
                 self.set_mask(id, 0);
                 self.free_list.push(id);
+                self.amount -= 1;
                 Ok(())
             }
         } else {
@@ -737,12 +738,15 @@ struct Column {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+    use std::rc::Rc;
     use super::*;
 
     #[derive(Debug, PartialEq)]
     struct Component1 {
         a: i16,
         b: u32,
+        drop_check: Rc<RefCell<u32>>,
     }
 
     impl Component for Component1 {
@@ -751,14 +755,28 @@ mod tests {
         }
     }
 
+    impl Drop for Component1 {
+        fn drop(&mut self) {
+            let i = *self.drop_check.borrow();
+            *self.drop_check.borrow_mut() = i + 1;
+        }
+    }
+
     #[derive(Debug, PartialEq)]
     struct Component2 {
-        c: i16
+        c: i16,
+        drop_check: Rc<RefCell<u32>>,
     }
 
     impl Component for Component2 {
         fn get_component_name() -> &'static str {
             "component2"
+        }
+    }
+    impl Drop for Component2 {
+        fn drop(&mut self) {
+            let i = *self.drop_check.borrow();
+            *self.drop_check.borrow_mut() = i + 1;
         }
     }
 
@@ -814,31 +832,43 @@ mod tests {
         builder.register_component::<Component1>().unwrap();
         builder.register_component::<Component2>().unwrap();
         let mut world = builder.build().expect("Expected world");
+        let drop_check1 = Rc::new(RefCell::new(0));
         let entity1 = world.insert1(Component1{
             a: 1,
             b: 2,
+            drop_check: drop_check1.clone(),
         }).unwrap();
+        let drop_check2 = Rc::new(RefCell::new(0));
         let entity2 = world.insert1(Component1{
             a: 2,
             b: 4,
+            drop_check: drop_check2.clone(),
         }).unwrap();
         let mut iter = world.query1(|_: &Component1| true).unwrap().into_iter();
         assert_eq!(Some(&Component1 {
             a: 1,
-            b: 2
+            b: 2,
+            drop_check: Rc::new(RefCell::new(0)),
         }), iter.next());
         assert_eq!(Some(&Component1 {
             a: 2,
-            b: 4
+            b: 4,
+            drop_check: Rc::new(RefCell::new(0)),
         }), iter.next());
         assert_eq!(None, iter.next());
 
         let mut iter = world.query1(|c: &Component1| c.a % 2 == 0).unwrap().into_iter();
         assert_eq!(Some(&Component1 {
             a: 2,
-            b: 4
+            b: 4,
+            drop_check: Rc::new(RefCell::new(0)),
         }), iter.next());
         assert_eq!(None, iter.next());
+
+        world.clear();
+
+        assert_eq!(1, *drop_check1.borrow_mut());
+        assert_eq!(1, *drop_check2.borrow_mut());
     }
 
     #[test]
@@ -848,13 +878,17 @@ mod tests {
         builder.register_component::<Component1>().unwrap();
         builder.register_component::<Component2>().unwrap();
         let mut world = builder.build().expect("Expected world");
+        let drop_check1 = Rc::new(RefCell::new(0));
         let entity1 = world.insert1(Component1{
             a: 1,
             b: 2,
+            drop_check: drop_check1.clone(),
         }).unwrap();
+        let drop_check2 = Rc::new(RefCell::new(0));
         let entity2 = world.insert1(Component1{
             a: 2,
             b: 4,
+            drop_check: drop_check2.clone(),
         }).unwrap();
         let mut iter_mut = world.mut_query1(|c: &Component1| c.a % 2 == 0).unwrap().into_iter();
         let mutable_entity = iter_mut.next().unwrap();
@@ -867,19 +901,76 @@ mod tests {
         let mut iter = world.query1(|_: &Component1| true).unwrap().into_iter();
         assert_eq!(Some(&Component1 {
             a: 1,
-            b: 2
+            b: 2,
+            drop_check: Rc::new(RefCell::new(0)),
         }), iter.next());
         assert_eq!(Some(&Component1 {
             a: 4,
-            b: 8
+            b: 8,
+            drop_check: Rc::new(RefCell::new(0)),
         }), iter.next());
         assert_eq!(None, iter.next());
 
         let mut iter = world.query1(|c: &Component1| c.a % 2 == 0).unwrap().into_iter();
         assert_eq!(Some(&Component1 {
             a: 4,
-            b: 8
+            b: 8,
+            drop_check: Rc::new(RefCell::new(0)),
         }), iter.next());
         assert_eq!(None, iter.next());
+
+        world.clear();
+
+        assert_eq!(1, *drop_check1.borrow_mut());
+        assert_eq!(1, *drop_check2.borrow_mut());
+    }
+
+    #[test]
+    fn test_remove() {
+        let mut builder = WorldBuilder::new();
+        builder.with_capacity(10);
+        builder.register_component::<Component1>().unwrap();
+        builder.register_component::<Component2>().unwrap();
+        let mut world = builder.build().expect("Expected world");
+        let drop_check1 = Rc::new(RefCell::new(0));
+        let entity1 = world.insert1(Component1{
+            a: 1,
+            b: 2,
+            drop_check: drop_check1.clone(),
+        }).unwrap();
+        let drop_check2 = Rc::new(RefCell::new(0));
+        let entity2 = world.insert1(Component1{
+            a: 2,
+            b: 4,
+            drop_check: drop_check2.clone(),
+        }).unwrap();
+        world.remove(entity1).unwrap();
+        let drop_check3 = Rc::new(RefCell::new(0));
+        let entity3 = world.insert1(Component1{
+            a: 3,
+            b: 6,
+            drop_check: drop_check3.clone(),
+        }).unwrap();
+        let drop_check4 = Rc::new(RefCell::new(0));
+        let entity4 = world.insert1(Component1{
+            a: 4,
+            b: 8,
+            drop_check: drop_check4.clone(),
+        }).unwrap();
+        assert_eq!(entity1, 0);
+        assert_eq!(entity2, 1);
+        assert_eq!(entity3, 0);
+        assert_eq!(entity4, 2);
+        assert_eq!(1, *drop_check1.borrow_mut());
+        assert_eq!(0, *drop_check2.borrow_mut());
+        assert_eq!(0, *drop_check3.borrow_mut());
+        assert_eq!(0, *drop_check4.borrow_mut());
+
+        world.clear();
+
+        assert_eq!(1, *drop_check1.borrow_mut());
+        assert_eq!(1, *drop_check2.borrow_mut());
+        assert_eq!(1, *drop_check3.borrow_mut());
+        assert_eq!(1, *drop_check4.borrow_mut());
     }
 }
