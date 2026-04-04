@@ -104,6 +104,14 @@ impl<'a> Graphics<'a> {
     pub fn get_view(&self) -> &View {
         &self.view
     }
+    
+    ///
+    /// The canvas size in pixels
+    /// 
+    pub fn get_canvas_size(&self) -> Dimensions2<i32> {
+        let (w, h) = self.canvas.window().size();
+        Dimensions2::new(w as i32, h as i32)
+    }
 }
 
 ///

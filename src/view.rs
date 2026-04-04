@@ -1,5 +1,5 @@
 use crate::direction::Direction;
-use crate::geometry::{Dimensions2, Transform};
+use crate::geometry::Transform;
 
 ///
 /// The view
@@ -32,11 +32,6 @@ pub struct View {
     direction: Direction,
 
     ///
-    /// The window size
-    ///
-    window_size: Dimensions2<i32>,
-
-    ///
     /// The size of a single tile
     ///
     tile_size: f32,
@@ -56,14 +51,13 @@ impl View {
     ///
     /// Creates a new view
     ///
-    pub fn new(x: f32, y: f32, z: u32, zoom: f32, direction: Direction, window_size: Dimensions2<i32>, tile_size: f32) -> Self {
+    pub fn new(x: f32, y: f32, z: u32, zoom: f32, direction: Direction, tile_size: f32) -> Self {
         View {
             x,
             y,
             z,
             zoom,
             direction,
-            window_size,
             tile_size,
             world_to_view_transform: Transform::world_to_view(x, y, zoom, direction),
             view_to_world_transform: Transform::view_to_world(x, y, zoom, direction),
@@ -72,13 +66,6 @@ impl View {
 
     pub fn get_z(&self) -> u32 {
         self.z
-    }
-
-    ///
-    /// Returns the size of the window
-    ///
-    pub fn get_window_size(&self) -> &Dimensions2<i32> {
-        &self.window_size
     }
 
     ///

@@ -5,9 +5,10 @@ use crate::immutable_state::ImmutableState;
 use crate::resource::{Error as ResourceError, ResourceId};
 
 
-pub struct Scene {
-
-}
+///
+/// The scene
+///
+pub struct Scene {}
 
 impl Scene {
     ///
@@ -24,7 +25,7 @@ impl Scene {
         let view = graphics.get_view();
         let transform = Transform::scale(1.0 / view.get_tile_size());
         let crop_box = view.get_view_to_world_transform()
-            .transform_bounds(&view.get_window_size().cast(|i| i as f32).into_bounds())
+            .transform_bounds(&graphics.get_canvas_size().cast(|i| i as f32).into_bounds())
             .add_margin(view.get_tile_size());
         let crop_box = transform.transform_bounds(&crop_box).cast(|f| f as i32);
         let z = graphics.get_view().get_z();

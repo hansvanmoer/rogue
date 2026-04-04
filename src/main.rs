@@ -56,6 +56,8 @@ fn main() {
 
     let map = LocalMap::new(&NonZeroDimensions3::new(10, 10, 2).unwrap(), "temperate", &immutable_state).expect("Failed to create local map");
 
+    let view = View::new(-100.0, -200.0, 0, 1.0, Direction::North, 32.0);
+    let mut graphics = sub_systems.create_graphics(view).expect("Failed to create graphics");
     'main_loop: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -65,9 +67,6 @@ fn main() {
                 },
                 _ => {}
             }
-            let view = View::new(-100.0, -200.0, 0, 1.0, Direction::North, Dimensions2::new(199, 100), 32.0);
-            debug!("View: {:?}", view);
-            let mut graphics = sub_systems.create_graphics(view).expect("Failed to create graphics");
             map.render(&mut graphics).expect("rendering failed");
         }
         sub_systems.present_canvas().expect("Failed to present canvas");
