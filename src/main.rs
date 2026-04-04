@@ -14,7 +14,6 @@ mod validation;
 mod local_map;
 mod tile_set;
 mod color;
-mod transform;
 mod building;
 mod sparse_array;
 mod ecs;

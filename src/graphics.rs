@@ -1,10 +1,9 @@
 use std::cell::RefMut;
 use crate::color::Color;
 use crate::direction::Direction;
-use crate::geometry::{Bounds2, Dimensions2};
+use crate::geometry::{Bounds2, Dimensions2, Transform};
 use crate::resource::{Error as ResourceError};
 use crate::texture::{Error as TextureError, SubTextureIndex, Texture, TextureSet};
-use crate::transform::Transform;
 
 pub struct Graphics<'a> {
     ///
