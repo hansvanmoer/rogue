@@ -249,7 +249,7 @@ impl Drop for World {
 ///
 /// A query
 ///
-trait Query<'a> {
+pub trait Query<'a> {
 
     type Item;
 
@@ -260,7 +260,7 @@ trait Query<'a> {
 
 pub struct SortedQuery<'a, Q: Query<'a>, O: Eq + Ord> {
     query: Q,
-    order: RefCell<BTreeSet<SortedId<O>>>,
+    order: Vec<SortedId<O>>,
     phantom_data: std::marker::PhantomData<&'a Q::Item>,
 }
 
@@ -275,9 +275,10 @@ impl<'a, Q: Query<'a>, O: Eq + Ord> SortedQuery<'a, Q, O> {
                 });
             }
         }
+        let order = order.into_iter().collect();
         SortedQuery {
             query,
-            order: RefCell::new(order),
+            order,
             phantom_data: std::marker::PhantomData,
         }
     }
@@ -291,7 +292,7 @@ impl<'a, Q: Query<'a>, O: Eq + Ord> Query<'a> for SortedQuery<'a, Q, O> {
     type Item = Q::Item;
 
     fn get(&self, id: EntityId) -> Option<Self::Item> {
-        self.order.borrow_mut().pop_first().and_then(|si| self.query.get(si.id))
+        self.query.get(self.order[id].id)
     }
 
     fn max_amount(&self) -> usize {
@@ -324,7 +325,7 @@ impl<O: Eq + Ord> Ord for SortedId<O> {
     }
 }
 
-struct Iter<'a, Q: Query<'a>> {
+pub struct Iter<'a, Q: Query<'a>> {
     query: Q,
     id: EntityId,
     phantom_data: std::marker::PhantomData<&'a Q::Item>,
@@ -528,7 +529,7 @@ impl<'a, C0: Component, C1: Component, F: Fn(&C0, &C1) -> bool> Query2<'a, C0, C
 ///
 /// A query
 ///
-trait MutQuery<'a> {
+pub trait MutQuery<'a> {
 
     type Item;
 
@@ -537,7 +538,7 @@ trait MutQuery<'a> {
     fn max_amount(&self) -> usize;
 }
 
-struct MutIter<'a, Q: MutQuery<'a>> {
+pub struct MutIter<'a, Q: MutQuery<'a>> {
     query: Q,
     id: EntityId,
     phantom_data: std::marker::PhantomData<&'a Q::Item>,

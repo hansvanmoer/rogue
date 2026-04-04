@@ -19,16 +19,19 @@ mod transform;
 mod building;
 mod sparse_array;
 mod ecs;
+mod scene;
+mod direction;
 
 use std::thread::sleep;
 use std::time::Duration;
 use log::{debug, info};
 use sdl2::event::Event;
+use crate::direction::Direction;
 use crate::environment::Environment;
 use crate::graphics::View;
 use crate::immutable_state::ImmutableState;
 use crate::local_map::LocalMap;
-use crate::metrics::NonZeroDimensions3;
+use crate::metrics::{Dimensions2, NonZeroDimensions3};
 use crate::settings::Settings;
 use crate::system::SubSystems;
 
@@ -62,7 +65,7 @@ fn main() {
                 },
                 _ => {}
             }
-            let view = View::new(-100.0, -200.0, 0, 1.0, 0);
+            let view = View::new(-100.0, -200.0, 0, 1.0, Direction::North, Dimensions2::new(199, 100));
             debug!("View: {:?}", view);
             let mut graphics = sub_systems.create_graphics(view).expect("Failed to create graphics");
             map.render(&mut graphics).expect("rendering failed");

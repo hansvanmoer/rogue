@@ -1,5 +1,6 @@
 use std::cell::RefMut;
 use crate::color::Color;
+use crate::direction::Direction;
 use crate::metrics::{Bounds2, Dimensions2};
 use crate::resource::{Error as ResourceError};
 use crate::texture::{Error as TextureError, SubTextureIndex, Texture, TextureSet};
@@ -134,7 +135,12 @@ pub struct View {
     ///
     /// The clock wise cardinal direction of the view
     ///
-    direction: i32,
+    direction: Direction,
+
+    ///
+    /// The window size
+    ///
+    window_size: Dimensions2<i32>,
 
     ///
     /// The world-to-view transform
@@ -151,13 +157,14 @@ impl View {
     ///
     /// Creates a new view
     ///
-    pub fn new(x: f32, y: f32, z: u32, zoom: f32, direction: i32) -> Self {
+    pub fn new(x: f32, y: f32, z: u32, zoom: f32, direction: Direction, window_size: Dimensions2<i32>) -> Self {
         View {
             x,
             y,
             z,
             zoom,
             direction,
+            window_size,
             view_transform: Transform::world_to_view(x, y, zoom, direction),
             world_transform: Transform::view_to_world(x, y, zoom, direction),
         }

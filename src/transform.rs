@@ -1,3 +1,4 @@
+use crate::direction::Direction;
 use crate::metrics::Bounds2;
 
 ///
@@ -14,19 +15,19 @@ impl Transform {
     ///
     /// Creates a new world to view transform
     ///
-    pub fn world_to_view(screen_x: f32, screen_y: f32, zoom: f32, direction: i32) -> Transform {
+    pub fn world_to_view(screen_x: f32, screen_y: f32, zoom: f32, heading: Direction) -> Transform {
         Transform::scale(zoom)
-            .append(Transform::clockwise_cardinal_rotation(direction))
+            .append(Transform::clockwise_cardinal_rotation(heading))
             .append(Transform::translation(-screen_x, -screen_y))
     }
 
     ///
     /// Creates a view to world transformation
     ///
-    pub fn view_to_world(screen_x: f32, screen_y: f32, zoom: f32, direction: i32) -> Transform {
+    pub fn view_to_world(screen_x: f32, screen_y: f32, zoom: f32, heading: Direction) -> Transform {
         Transform::translation(screen_x, screen_y)
             .append(Transform::scale(1.0 / zoom))
-            .append(Transform::clockwise_cardinal_rotation(-direction))
+            .append(Transform::clockwise_cardinal_rotation(heading.mirror_horizontally()))
     }
 
     ///
@@ -41,19 +42,13 @@ impl Transform {
     ///
     /// A rotation for the cardinal directions
     ///
-    fn clockwise_cardinal_rotation(quadrants: i32) -> Transform {
-        let direction = quadrants % 4;
-        let direction = if direction < 0 {
-            direction + 4
-        } else {
-            direction
-        };
+    fn clockwise_cardinal_rotation(heading: Direction) -> Transform {
         Transform {
-            matrix: match direction {
-                0 => [1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
-                1 => [0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
-                2 => [-1.0, 0.0, 0.0, 0.0, -1.0, 0.0],
-                _ => [0.0, -1.0, 0.0, 1.0, 0.0, 0.0]
+            matrix: match heading {
+                Direction::North => [1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                Direction::East => [0.0, 1.0, 0.0, -1.0, 0.0, 0.0],
+                Direction::South => [-1.0, 0.0, 0.0, 0.0, -1.0, 0.0],
+                Direction::West => [0.0, -1.0, 0.0, 1.0, 0.0, 0.0]
             }
         }
     }
@@ -154,27 +149,19 @@ mod tests {
 
     #[test]
     fn test_clockwise_cardinal_rotation() {
-        let t = Transform::clockwise_cardinal_rotation(0);
+        let t = Transform::clockwise_cardinal_rotation(Direction::North);
         let result = t.transform_point(1.0, 2.0);
         assert_eq!((1.0, 2.0), result);
 
-        let t = Transform::clockwise_cardinal_rotation(1);
+        let t = Transform::clockwise_cardinal_rotation(Direction::East);
         let result = t.transform_point(1.0, 2.0);
         assert_eq!((2.0, -1.0), result);
 
-        let t = Transform::clockwise_cardinal_rotation(2);
+        let t = Transform::clockwise_cardinal_rotation(Direction::South);
         let result = t.transform_point(1.0, 2.0);
         assert_eq!((-1.0, -2.0), result);
 
-        let t = Transform::clockwise_cardinal_rotation(3);
-        let result = t.transform_point(1.0, 2.0);
-        assert_eq!((-2.0, 1.0), result);
-
-        let t = Transform::clockwise_cardinal_rotation(4);
-        let result = t.transform_point(1.0, 2.0);
-        assert_eq!((1.0, 2.0), result);
-
-        let t = Transform::clockwise_cardinal_rotation(-5);
+        let t = Transform::clockwise_cardinal_rotation(Direction::West);
         let result = t.transform_point(1.0, 2.0);
         assert_eq!((-2.0, 1.0), result);
     }
@@ -198,19 +185,19 @@ mod tests {
 
     #[test]
     fn test_view() {
-        let t = Transform::world_to_view(10.0, 20.0, 1.0, 0);
+        let t = Transform::world_to_view(10.0, 20.0, 1.0, Direction::North);
         let result = t.transform_point(1.0, 3.0);
         assert_eq!((-9.0, -17.0), result);
 
-        let t = Transform::world_to_view(0.0, 0.0, 2.0, 0);
+        let t = Transform::world_to_view(0.0, 0.0, 2.0, Direction::North);
         let result = t.transform_point(1.0, 3.0);
         assert_eq!((2.0, 6.0), result);
 
-        let t = Transform::world_to_view(0.0, 0.0, 1.0, 1);
+        let t = Transform::world_to_view(0.0, 0.0, 1.0, Direction::East);
         let result = t.transform_point(1.0, 3.0);
         assert_eq!((3.0, -1.0), result);
 
-        let t = Transform::world_to_view(10.0, 20.0, 2.0, 1);
+        let t = Transform::world_to_view(10.0, 20.0, 2.0, Direction::East);
         let result = t.transform_point(1.0, 3.0);
         assert_eq!((-34.0, 18.0), result);
     }
