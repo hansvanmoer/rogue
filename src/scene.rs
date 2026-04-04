@@ -21,6 +21,7 @@ impl Scene {
     /// Renders all objects in the scene in the correct order
     ///
     pub fn render<'a>(&mut self, world: &World, immutable_state: &'a ImmutableState, graphics: &mut Graphics<'a>) -> Result<(), Error> {
+        let crop_box = graphics.get_view().get_window_size();
         let z = graphics.get_view().get_z();
         world.query1(|object: &Object| object.position.z == z)?
             .sorted(Object::order)

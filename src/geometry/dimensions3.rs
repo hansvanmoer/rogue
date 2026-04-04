@@ -1,11 +1,13 @@
 use std::fmt::Debug;
-use crate::geometry::AdditiveGroup;
+use std::ops::Sub;
+use crate::geometry::{AdditiveGroup};
+use crate::geometry::bounds3::Bounds3;
 
 ///
 /// A width, height tuple that is always positive
 ///
 #[derive(Debug, PartialEq, Clone)]
-pub struct Dimensions3<T: Debug + AdditiveGroup> {
+pub struct Dimensions3<T: AdditiveGroup + Clone + Copy + Debug + Sub> {
     ///
     /// The width
     ///
@@ -22,7 +24,7 @@ pub struct Dimensions3<T: Debug + AdditiveGroup> {
     depth: T,
 }
 
-impl<T: AdditiveGroup + Debug> Dimensions3<T> {
+impl<T: AdditiveGroup + Clone + Copy + Debug + Sub> Dimensions3<T> {
     ///
     /// Constructs a new dimensions instance
     ///
@@ -54,6 +56,13 @@ impl<T: AdditiveGroup + Debug> Dimensions3<T> {
     pub fn get_depth(&self) -> &T {
         &self.depth
     }
+
+    ///
+    /// Converts the dimensions into a bounding rectangle
+    ///
+    pub fn into_bounds(self) -> Bounds3<T> {
+        Bounds3::new(AdditiveGroup::IDENTITY, self.width, AdditiveGroup::IDENTITY, self.height, AdditiveGroup::IDENTITY, self.depth)
+    }
 }
 
 #[cfg(test)]
@@ -72,5 +81,16 @@ mod tests {
         assert_eq!(&2, expected.get_width());
         assert_eq!(&4, expected.get_height());
         assert_eq!(&6, expected.get_depth());
+    }
+
+    #[test]
+    pub fn test_into_bounds() {
+        let dimensions = Dimensions3 {
+            width: 2,
+            height: 4,
+            depth: 6,
+        }.into_bounds();
+        let expected = Bounds3::new(0, 2, 0, 4, 0, 6);
+        assert_eq!(expected, dimensions);
     }
 }
