@@ -1,9 +1,9 @@
 use std::cell::RefMut;
 use crate::color::Color;
-use crate::direction::Direction;
-use crate::geometry::{Bounds2, Dimensions2, Transform};
+use crate::geometry::{Bounds2, Dimensions2};
 use crate::resource::{Error as ResourceError};
 use crate::texture::{Error as TextureError, SubTextureIndex, Texture, TextureSet};
+use crate::view::View;
 
 pub struct Graphics<'a> {
     ///
@@ -46,7 +46,7 @@ impl<'a> Graphics<'a> {
     /// Draws a texture
     ///
     pub fn draw_sprite(&mut self, texture: &Texture<'a>, bounds: Bounds2<f32>) -> Result<(), Error> {
-        let transformed_bounds = self.view.view_transform.transform_bounds(&bounds);
+        let transformed_bounds = self.view.get_world_to_view_transform().transform_bounds(&bounds);
         texture.render(&mut self.canvas, &transformed_bounds)
     }
 
@@ -58,8 +58,8 @@ impl<'a> Graphics<'a> {
         if max_col <= 0 {
             Err(Error::InvalidColumnCount(columns))
         } else {
-            let (origin_x, origin_y) = self.view.view_transform.transform_point(0.0,0.0);
-            let (dx, dy) = self.view.view_transform.transform_vector(
+            let (origin_x, origin_y) = self.view.get_world_to_view_transform().transform_point(0.0, 0.0);
+            let (dx, dy) = self.view.get_world_to_view_transform().transform_vector(
                 *texture_set.get_tile_size().get_width() as f32,
                 *texture_set.get_tile_size().get_height() as f32
             );
@@ -69,7 +69,7 @@ impl<'a> Graphics<'a> {
                 let left = origin_x + col as f32 * dx;
                 let top = origin_y + row as f32 * dy;
                 let bounds = Bounds2::new(left, left + dx, top, top + dy);
-                let transformed_bounds = self.view.view_transform.transform_bounds(&bounds);
+                let transformed_bounds = self.view.get_world_to_view_transform().transform_bounds(&bounds);
                 texture_set.render(&mut self.canvas, index, &transformed_bounds, false)?;
                 
                 col = col + 1;
@@ -103,81 +103,6 @@ impl<'a> Graphics<'a> {
     /// 
     pub fn get_view(&self) -> &View {
         &self.view
-    }
-}
-
-///
-/// The view
-///
-#[derive(Debug, PartialEq)]
-pub struct View {
-    ///
-    /// The world x coordinate of the center of the view
-    ///
-    x: f32,
-
-    ///
-    /// The world y coordinate of the center of the view
-    ///
-    y: f32,
-
-    ///
-    /// The world z coordinate
-    ///
-    z: u32,
-
-    ///
-    /// The zoom
-    ///
-    zoom: f32,
-
-    ///
-    /// The clock wise cardinal direction of the view
-    ///
-    direction: Direction,
-
-    ///
-    /// The window size
-    ///
-    window_size: Dimensions2<i32>,
-
-    ///
-    /// The world-to-view transform
-    ///
-    view_transform: Transform,
-
-    ///
-    /// The view-to-world transform
-    ///
-    world_transform: Transform,
-}
-
-impl View {
-    ///
-    /// Creates a new view
-    ///
-    pub fn new(x: f32, y: f32, z: u32, zoom: f32, direction: Direction, window_size: Dimensions2<i32>) -> Self {
-        View {
-            x,
-            y,
-            z,
-            zoom,
-            direction,
-            window_size,
-            view_transform: Transform::world_to_view(x, y, zoom, direction),
-            world_transform: Transform::view_to_world(x, y, zoom, direction),
-        }
-    }
-
-    pub fn get_z(&self) -> u32 {
-        self.z
-    }
-    
-    ///
-    /// Returns the size of the window
-    /// 
-    pub fn get_window_size(&self) -> &Dimensions2<i32> {
-        &self.window_size
     }
 }
 

@@ -56,7 +56,7 @@ impl Transform {
     ///
     /// A scale transformation
     ///
-    fn scale(scale: f32) -> Transform {
+    pub fn scale(scale: f32) -> Transform {
         Transform {
             matrix: [scale, 0.0, 0.0, 0.0, scale, 0.0]
         }
@@ -122,7 +122,6 @@ impl Transform {
         let (right, bottom) = self.transform_point(bounds.get_max_x(), bounds.get_max_y());
         Bounds2::new(left, right, top, bottom)
     }
-
 }
 
 #[cfg(test)]

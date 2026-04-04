@@ -1,5 +1,5 @@
 use crate::ecs::{Error as EcsError, Component, World};
-use crate::geometry::{Bounds2, Dimensions2};
+use crate::geometry::{Bounds2, Dimensions2, Transform};
 use crate::graphics::{Error as GraphicsError, Graphics};
 use crate::immutable_state::ImmutableState;
 use crate::resource::{Error as ResourceError, ResourceId};
@@ -21,9 +21,14 @@ impl Scene {
     /// Renders all objects in the scene in the correct order
     ///
     pub fn render<'a>(&mut self, world: &World, immutable_state: &'a ImmutableState, graphics: &mut Graphics<'a>) -> Result<(), Error> {
-        let crop_box = graphics.get_view().get_window_size();
+        let view = graphics.get_view();
+        let transform = Transform::scale(1.0 / view.get_tile_size());
+        let crop_box = view.get_view_to_world_transform()
+            .transform_bounds(&view.get_window_size().cast(|i| i as f32).into_bounds())
+            .add_margin(view.get_tile_size());
+        let crop_box = transform.transform_bounds(&crop_box).cast(|f| f as i32);
         let z = graphics.get_view().get_z();
-        world.query1(|object: &Object| object.position.z == z)?
+        world.query1(|object: &Object| object.position.z == z && crop_box.is_within_bounds(object.position.x, object.position.y))?
             .sorted(Object::order)
             .into_iter()
             .try_for_each(|object| {
@@ -127,7 +132,7 @@ impl Ord for Position {
 ///
 /// Scene errors
 ///
-enum Error {
+pub enum Error {
     ///
     /// The texture error
     ///

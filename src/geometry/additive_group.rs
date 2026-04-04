@@ -1,6 +1,7 @@
-use std::ops::Sub;
+use std::fmt::Debug;
+use std::ops::{Add, Sub};
 
-pub trait AdditiveGroup : PartialEq + PartialOrd + Sized + Sub<Self, Output = Self> {
+pub trait AdditiveGroup : Add<Self, Output = Self> + Clone + Copy + Debug + PartialEq + PartialOrd + Sized + Sub<Self, Output = Self> {
     const IDENTITY: Self;
 
     fn abs(self) -> Self {

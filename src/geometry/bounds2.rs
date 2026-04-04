@@ -1,8 +1,9 @@
 use std::fmt::Debug;
-use std::ops::Sub;
+use std::ops::{Add, Sub};
+use crate::geometry::AdditiveGroup;
 
 #[derive(Debug, PartialEq)]
-pub struct Bounds2<T: Copy + Debug + PartialEq + PartialOrd + Sub> {
+pub struct Bounds2<T: AdditiveGroup> {
     ///
     /// The left border
     ///
@@ -24,7 +25,7 @@ pub struct Bounds2<T: Copy + Debug + PartialEq + PartialOrd + Sub> {
     max_y: T,
 }
 
-impl<T: Copy + Debug + PartialEq + PartialOrd + Sub> Bounds2<T> {
+impl<T: AdditiveGroup> Bounds2<T> {
 
     ///
     /// Constructs a new bounding rectangle
@@ -76,21 +77,40 @@ impl<T: Copy + Debug + PartialEq + PartialOrd + Sub> Bounds2<T> {
     ///
     /// The difference between the x coordinates
     ///
-    pub fn get_x_difference(&self) -> T::Output {
+    pub fn get_x_difference(&self) -> T {
         self.max_x - self.min_x
     }
 
     ///
     /// The difference between the y coordinates
     ///
-    pub fn get_y_difference(&self) -> T::Output {
+    pub fn get_y_difference(&self) -> T {
         self.max_y - self.min_y
+    }
+    
+    ///
+    /// Checks whether the given point is within the bounds
+    /// 
+    pub fn is_within_bounds(&self, x: T, y: T) -> bool {
+        x >= self.min_x && x <= self.max_x && y >= self.min_y && y <= self.max_y
+    }
+
+    ///
+    /// Adds a margin to the bounds
+    ///
+    pub fn add_margin(&self, margin: T) -> Self {
+        Bounds2 {
+            min_x: self.min_x - margin,
+            max_x: self.max_x + margin,
+            min_y: self.min_y - margin,
+            max_y: self.max_y + margin,
+        }
     }
 
     ///
     /// Casts the bounds to a new type
     ///
-    pub fn cast<U: Copy + Debug + PartialEq + PartialOrd + Sub, F: Fn(T) -> U>(&self, f: F) -> Bounds2<U> {
+    pub fn cast<U: AdditiveGroup, F: Fn(T) -> U>(&self, f: F) -> Bounds2<U> {
         Bounds2 {
             min_x: f(self.min_x),
             max_x: f(self.max_x),
@@ -132,5 +152,13 @@ mod tests {
         let casted = bounds.cast(|i| i as f32);
         let casted_back = casted.cast(|f| f as i32);
         assert_eq!(expected, casted_back);
+    }
+    
+    #[test]
+    fn test_bounds2_is_within_bounds() {
+        let bounds = Bounds2::new(1.0, 2.0, 3.0, 4.0);
+        assert!(bounds.is_within_bounds(1.5, 3.5));
+        assert!(!bounds.is_within_bounds(0.9, 3.5));
+        assert!(!bounds.is_within_bounds(1.5, 4.5));
     }
 }

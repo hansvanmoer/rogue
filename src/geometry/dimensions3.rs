@@ -1,13 +1,13 @@
 use std::fmt::Debug;
 use std::ops::Sub;
-use crate::geometry::{AdditiveGroup};
+use crate::geometry::AdditiveGroup;
 use crate::geometry::bounds3::Bounds3;
 
 ///
 /// A width, height tuple that is always positive
 ///
 #[derive(Debug, PartialEq, Clone)]
-pub struct Dimensions3<T: AdditiveGroup + Clone + Copy + Debug + Sub> {
+pub struct Dimensions3<T: AdditiveGroup> {
     ///
     /// The width
     ///
@@ -24,7 +24,7 @@ pub struct Dimensions3<T: AdditiveGroup + Clone + Copy + Debug + Sub> {
     depth: T,
 }
 
-impl<T: AdditiveGroup + Clone + Copy + Debug + Sub> Dimensions3<T> {
+impl<T: AdditiveGroup> Dimensions3<T> {
     ///
     /// Constructs a new dimensions instance
     ///
@@ -55,6 +55,17 @@ impl<T: AdditiveGroup + Clone + Copy + Debug + Sub> Dimensions3<T> {
     ///
     pub fn get_depth(&self) -> &T {
         &self.depth
+    }
+
+    ///
+    /// Casts the dimensions into another type
+    ///
+    pub fn cast<U: AdditiveGroup + Clone + Copy + Debug + Sub, F: Fn(T) -> U>(&self, f: F) -> Dimensions3<U>{
+        Dimensions3 {
+            width: f(self.width),
+            height: f(self.height),
+            depth: f(self.depth),
+        }
     }
 
     ///

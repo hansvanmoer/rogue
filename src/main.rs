@@ -20,6 +20,7 @@ mod ecs;
 mod scene;
 mod direction;
 mod geometry;
+mod view;
 
 use std::thread::sleep;
 use std::time::Duration;
@@ -28,7 +29,7 @@ use sdl2::event::Event;
 use crate::direction::Direction;
 use crate::environment::Environment;
 use crate::geometry::{Dimensions2, NonZeroDimensions3};
-use crate::graphics::View;
+use crate::view::View;
 use crate::immutable_state::ImmutableState;
 use crate::local_map::LocalMap;
 use crate::settings::Settings;
@@ -64,7 +65,7 @@ fn main() {
                 },
                 _ => {}
             }
-            let view = View::new(-100.0, -200.0, 0, 1.0, Direction::North, Dimensions2::new(199, 100));
+            let view = View::new(-100.0, -200.0, 0, 1.0, Direction::North, Dimensions2::new(199, 100), 32.0);
             debug!("View: {:?}", view);
             let mut graphics = sub_systems.create_graphics(view).expect("Failed to create graphics");
             map.render(&mut graphics).expect("rendering failed");

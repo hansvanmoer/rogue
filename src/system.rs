@@ -3,8 +3,9 @@ use log::debug;
 use sdl2::{EventPump, Sdl, VideoSubsystem};
 use sdl2::render::{Canvas, TextureCreator};
 use sdl2::video::{Window, WindowContext};
-use crate::graphics::{Graphics, View};
+use crate::graphics::Graphics;
 use crate::settings::Settings;
+use crate::view::View;
 
 ///
 /// Wraps all SDL subsystem handles

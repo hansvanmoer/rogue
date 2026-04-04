@@ -5,7 +5,7 @@ use crate::geometry::{AdditiveGroup, Error};
 /// A width, height tuple that is positive and non zero
 ///
 #[derive(Debug, PartialEq, Clone)]
-pub struct NonZeroDimensions2<T: AdditiveGroup + Debug> {
+pub struct NonZeroDimensions2<T: AdditiveGroup> {
     ///
     /// The width
     ///
@@ -17,7 +17,7 @@ pub struct NonZeroDimensions2<T: AdditiveGroup + Debug> {
     height: T,
 }
 
-impl<T: AdditiveGroup + Debug> NonZeroDimensions2<T> {
+impl<T: AdditiveGroup> NonZeroDimensions2<T> {
     ///
     /// Constructs a new dimension object, if possible
     ///

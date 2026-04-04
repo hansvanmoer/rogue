@@ -1,10 +1,11 @@
 use std::fmt::Debug;
+use crate::geometry::AdditiveGroup;
 
 ///
 /// A vector in 3D space
 ///
 #[derive(Debug, PartialEq)]
-pub struct Vector2<T: Copy + Debug + PartialEq> {
+pub struct Vector2<T: AdditiveGroup> {
     ///
     /// The x coordinate
     ///
@@ -16,7 +17,7 @@ pub struct Vector2<T: Copy + Debug + PartialEq> {
     y: T,
 }
 
-impl<T: Copy + Debug + PartialEq> Vector2<T> {
+impl<T: AdditiveGroup> Vector2<T> {
 
     ///
     /// Creates a new vector

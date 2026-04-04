@@ -1,9 +1,10 @@
 use std::fmt::Debug;
-use std::ops::Sub;
+use std::ops::{Add, Sub};
+use crate::geometry::AdditiveGroup;
 use crate::geometry::vector3::Vector3;
 
 #[derive(Debug, PartialEq)]
-pub struct Bounds3<T: Copy + Debug + PartialEq + PartialOrd + Sub> {
+pub struct Bounds3<T: AdditiveGroup> {
     ///
     /// The left border
     ///
@@ -35,7 +36,7 @@ pub struct Bounds3<T: Copy + Debug + PartialEq + PartialOrd + Sub> {
     max_z: T,
 }
 
-impl<T: Copy + Debug + PartialEq + PartialOrd + Sub> Bounds3<T> {
+impl<T: AdditiveGroup> Bounds3<T> {
 
     ///
     /// Constructs a new bounding rectangle
@@ -100,21 +101,21 @@ impl<T: Copy + Debug + PartialEq + PartialOrd + Sub> Bounds3<T> {
     ///
     /// The difference between the x coordinates
     ///
-    pub fn get_x_difference(&self) -> T::Output {
+    pub fn get_x_difference(&self) -> T {
         self.max_x - self.min_x
     }
 
     ///
     /// The difference between the y coordinates
     ///
-    pub fn get_y_difference(&self) -> T::Output {
+    pub fn get_y_difference(&self) -> T {
         self.max_y - self.min_y
     }
 
     ///
     /// The difference between the z coordinates
     ///
-    pub fn get_z_difference(&self) -> T::Output {
+    pub fn get_z_difference(&self) -> T {
         self.max_z - self.min_z
     }
 
@@ -130,7 +131,7 @@ impl<T: Copy + Debug + PartialEq + PartialOrd + Sub> Bounds3<T> {
     ///
     /// Casts the bounds to a new type
     ///
-    pub fn cast<U: Copy + Debug + PartialEq + PartialOrd + Sub, F: Fn(T) -> U>(&self, f: F) -> Bounds3<U> {
+    pub fn cast<U: AdditiveGroup, F: Fn(T) -> U>(&self, f: F) -> Bounds3<U> {
         Bounds3 {
             min_x: f(self.min_x),
             max_x: f(self.max_x),
