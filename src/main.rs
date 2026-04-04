@@ -6,7 +6,6 @@ mod graphics;
 mod immutable_state;
 mod localization;
 mod material;
-mod metrics;
 mod resource;
 mod settings;
 mod system;
@@ -21,6 +20,7 @@ mod sparse_array;
 mod ecs;
 mod scene;
 mod direction;
+mod geometry;
 
 use std::thread::sleep;
 use std::time::Duration;
@@ -28,10 +28,10 @@ use log::{debug, info};
 use sdl2::event::Event;
 use crate::direction::Direction;
 use crate::environment::Environment;
+use crate::geometry::{Dimensions2, NonZeroDimensions3};
 use crate::graphics::View;
 use crate::immutable_state::ImmutableState;
 use crate::local_map::LocalMap;
-use crate::metrics::{Dimensions2, NonZeroDimensions3};
 use crate::settings::Settings;
 use crate::system::SubSystems;
 

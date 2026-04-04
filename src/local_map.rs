@@ -1,9 +1,9 @@
 use std::any::Any;
 use log::debug;
 use serde::{Deserialize, Serialize};
+use crate::geometry::NonZeroDimensions3;
 use crate::graphics::{Error as GraphicsError, Graphics};
 use crate::immutable_state::ImmutableState;
-use crate::metrics::NonZeroDimensions3;
 use crate::resource::{Error as ResourceError};
 use crate::texture::TextureSet;
 use crate::tile_set::{TileSet};

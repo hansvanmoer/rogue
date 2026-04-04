@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use sdl2::rect::Rect;
 use crate::configuration::{Error as ConfigurationError, load_configuration};
+use crate::geometry::{Bounds2, NonZeroDimensions2};
 use crate::graphics::Error as GraphicsError;
-use crate::metrics::{Bounds2, NonZeroDimensions2};
 use crate::resource::{Error as ResourceError, ResourceMap};
 use crate::validation::{non_empty_string, validate_field, validate_optional_vec_field, validate_vec_field, Error as ValidationError, ValidateOwned};
 

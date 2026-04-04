@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use serde::Deserialize;
 use crate::configuration::{Error as ConfigurationError};
-use crate::metrics::NonZeroDimensions3;
+use crate::geometry::NonZeroDimensions3;
 use crate::resource::{Error as ResourceError, ResourceDescriptor, ResourceId, ResourceIdMap, ResourceMap};
 use crate::sparse_array::SparseArray;
 use crate::texture::Texture;

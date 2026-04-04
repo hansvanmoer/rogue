@@ -1,7 +1,7 @@
 use std::cell::RefMut;
 use crate::color::Color;
 use crate::direction::Direction;
-use crate::metrics::{Bounds2, Dimensions2};
+use crate::geometry::{Bounds2, Dimensions2};
 use crate::resource::{Error as ResourceError};
 use crate::texture::{Error as TextureError, SubTextureIndex, Texture, TextureSet};
 use crate::transform::Transform;
@@ -172,6 +172,13 @@ impl View {
 
     pub fn get_z(&self) -> u32 {
         self.z
+    }
+    
+    ///
+    /// Returns the size of the window
+    /// 
+    pub fn get_window_size(&self) -> &Dimensions2<i32> {
+        &self.window_size
     }
 }
 

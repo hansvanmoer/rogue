@@ -1,5 +1,5 @@
 use crate::direction::Direction;
-use crate::metrics::Bounds2;
+use crate::geometry::Bounds2;
 
 ///
 /// A transformation

@@ -1,7 +1,7 @@
 use crate::ecs::{Error as EcsError, Component, World};
+use crate::geometry::{Bounds2, Dimensions2};
 use crate::graphics::{Error as GraphicsError, Graphics};
 use crate::immutable_state::ImmutableState;
-use crate::metrics::{Bounds2, Dimensions2};
 use crate::resource::{Error as ResourceError, ResourceId};
 
 
