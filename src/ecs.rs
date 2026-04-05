@@ -1,6 +1,6 @@
 use std::alloc::{Layout, LayoutError};
 use std::cell::RefCell;
-use std::collections::{BTreeSet, BinaryHeap};
+use std::collections::BinaryHeap;
 use std::ptr::NonNull;
 
 pub type EntityId = usize;
@@ -266,16 +266,17 @@ pub struct SortedQuery<'a, Q: Query<'a>, O: Eq + Ord> {
 
 impl<'a, Q: Query<'a>, O: Eq + Ord> SortedQuery<'a, Q, O> {
     fn new<F: Fn(Q::Item) -> O>(query: Q, sort: F) -> SortedQuery<'a, Q, O> {
-        let mut order = BTreeSet::new();
+        let mut order = Vec::new();
         for i in 0..query.max_amount() {
             if let Some(item)= query.get(i) {
-                order.insert(SortedId {
+                order.push(SortedId {
                     id: i,
                     ordinal: sort(item),
                 });
             }
         }
-        let order = order.into_iter().collect();
+        let mut order: Vec<SortedId<O>> = order.into_iter().collect();
+        order.sort();
         SortedQuery {
             query,
             order,

@@ -27,7 +27,7 @@ impl Scene {
         let crop_box = view.get_view_to_world_transform()
             .transform_bounds(&graphics.get_canvas_size().cast(|i| i as f32).into_bounds())
             .add_margin(view.get_tile_size());
-        let crop_box = transform.transform_bounds(&crop_box).cast(|f| f as i32);
+        let crop_box = transform.transform_bounds(&crop_box);
         let z = graphics.get_view().get_z();
         world.query1(|object: &Object| object.position.z == z && crop_box.is_within_bounds(object.position.x, object.position.y))?
             .sorted(Object::order)
@@ -41,16 +41,16 @@ impl Scene {
 ///
 /// An object in the scene
 ///
-struct Object {
+pub struct Object {
     ///
     /// The texture to render
     ///
     texture_id: ResourceId,
 
     ///
+    /// The size of the object
     ///
-    ///
-    size: Dimensions2<i32>,
+    size: Dimensions2<f32>,
 
     ///
     /// The position to render the texture at
@@ -59,6 +59,14 @@ struct Object {
 }
 
 impl Object {
+
+    pub fn new(immutable_state: &ImmutableState, texture_name: &str, size: Dimensions2<f32>, position: Position) -> Result<Self, ResourceError> {
+        Ok(Self {
+            texture_id: immutable_state.textures().get_required_id_by_name(texture_name)?,
+            size,
+            position,
+        })
+    }
 
     ///
     /// Orders the object by its position
@@ -92,27 +100,41 @@ impl Component for Object {
 ///
 /// The position of an object
 ///
-#[derive(Clone, Copy, Eq, PartialEq)]
-struct Position {
+#[derive(Clone, Copy, PartialEq)]
+pub struct Position {
     ///
     /// The x coordinate
     ///
-    x: i32,
+    x: f32,
 
     ///
     /// The y coordinate
     ///
-    y: i32,
+    y: f32,
 
     ///
     /// The z coordinate
     ///
-    z: u32,
+    z: i32,
 
     ///
     /// The layer the object is on
     ///
     layer: i32,
+}
+
+impl Position {
+    ///
+    /// Creates a new position
+    ///
+    pub fn new(x: f32, y: f32, z: i32, layer: i32) -> Self {
+        Position {
+            x,
+            y,
+            z,
+            layer,
+        }
+    }
 }
 
 impl PartialOrd for Position {
@@ -121,11 +143,13 @@ impl PartialOrd for Position {
     }
 }
 
+impl Eq for Position {}
+
 impl Ord for Position {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.z.cmp(&other.z)
-            .then(self.y.cmp(&other.y))
-            .then(self.x.cmp(&other.x))
+            .then(self.y.partial_cmp(&other.y).unwrap_or(std::cmp::Ordering::Equal))
+            .then(self.x.partial_cmp(&other.x).unwrap_or(std::cmp::Ordering::Equal))
             .then(self.layer.cmp(&other.layer))
     }
 }
@@ -133,6 +157,7 @@ impl Ord for Position {
 ///
 /// Scene errors
 ///
+#[derive(Debug, PartialEq)]
 pub enum Error {
     ///
     /// The texture error

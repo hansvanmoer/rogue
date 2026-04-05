@@ -27,11 +27,13 @@ use std::time::Duration;
 use log::{debug, info};
 use sdl2::event::Event;
 use crate::direction::Direction;
+use crate::ecs::{Error as EcmError, World, WorldBuilder};
 use crate::environment::Environment;
 use crate::geometry::{Dimensions2, NonZeroDimensions3};
 use crate::view::View;
 use crate::immutable_state::ImmutableState;
 use crate::local_map::LocalMap;
+use crate::scene::{Object, Position, Scene};
 use crate::settings::Settings;
 use crate::system::SubSystems;
 
@@ -56,8 +58,11 @@ fn main() {
 
     let map = LocalMap::new(&NonZeroDimensions3::new(10, 10, 2).unwrap(), "temperate", &immutable_state).expect("Failed to create local map");
 
-    let view = View::new(-100.0, -200.0, 0, 1.0, Direction::North, 32.0);
-    let mut graphics = sub_systems.create_graphics(view).expect("Failed to create graphics");
+    let view = View::new(0.0, 0.0, 0, 1.0, Direction::North, 32.0);
+    let mut entities = create_entities().expect("Failed to create entities");
+    let object = Object::new(&immutable_state, "knight_0", Dimensions2::new(32.0, 32.0), Position::new(0.0, 0.0, 0, 0)).expect("Failed to create object");
+    entities.insert1(object).expect("Failed to insert object");
+
     'main_loop: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -67,7 +72,10 @@ fn main() {
                 },
                 _ => {}
             }
+            let mut graphics = sub_systems.create_graphics(view.clone()).expect("Failed to create graphics");
             map.render(&mut graphics).expect("rendering failed");
+            let mut scene = Scene::new();
+            scene.render(&entities, &immutable_state, &mut graphics).expect("rendering failed");
         }
         sub_systems.present_canvas().expect("Failed to present canvas");
 
@@ -75,4 +83,13 @@ fn main() {
     }
 
     info!("Game started.");
+}
+
+///
+/// Creates the entities
+///
+fn create_entities() -> Result<World, EcmError> {
+    let mut builder = WorldBuilder::new();
+    builder.register_component::<Object>()?;
+    builder.build()
 }

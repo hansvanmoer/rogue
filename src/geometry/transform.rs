@@ -4,7 +4,7 @@ use crate::geometry::Bounds2;
 ///
 /// A transformation
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Transform {
     ///
     /// The transformation matrix

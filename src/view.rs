@@ -4,7 +4,7 @@ use crate::geometry::Transform;
 ///
 /// The view
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct View {
     ///
     /// The world x coordinate of the center of the view
@@ -19,7 +19,7 @@ pub struct View {
     ///
     /// The world z coordinate
     ///
-    z: u32,
+    z: i32,
 
     ///
     /// The zoom
@@ -51,7 +51,7 @@ impl View {
     ///
     /// Creates a new view
     ///
-    pub fn new(x: f32, y: f32, z: u32, zoom: f32, direction: Direction, tile_size: f32) -> Self {
+    pub fn new(x: f32, y: f32, z: i32, zoom: f32, direction: Direction, tile_size: f32) -> Self {
         View {
             x,
             y,
@@ -64,7 +64,7 @@ impl View {
         }
     }
 
-    pub fn get_z(&self) -> u32 {
+    pub fn get_z(&self) -> i32 {
         self.z
     }
 
