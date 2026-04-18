@@ -1,5 +1,5 @@
 use crate::ecs::{Error as EcsError, Component, World};
-use crate::geometry::{Bounds2, Dimensions2, Transform};
+use crate::geometry::{Bounds2, Dimensions2};
 use crate::graphics::{Error as GraphicsError, Graphics};
 use crate::immutable_state::ImmutableState;
 use crate::resource::{Error as ResourceError, ResourceId};
@@ -23,11 +23,9 @@ impl Scene {
     ///
     pub fn render<'a>(&mut self, world: &World, immutable_state: &'a ImmutableState, graphics: &mut Graphics<'a>) -> Result<(), Error> {
         let view = graphics.get_view();
-        let transform = Transform::scale(1.0 / view.get_tile_size());
         let crop_box = view.get_view_to_world_transform()
             .transform_bounds(&graphics.get_canvas_size().cast(|i| i as f32).into_bounds())
             .add_margin(view.get_tile_size());
-        let crop_box = transform.transform_bounds(&crop_box);
         let z = graphics.get_view().get_z();
         world.query1(|object: &Object| object.position.z == z && crop_box.is_within_bounds(object.position.x, object.position.y))?
             .sorted(Object::order)
@@ -80,11 +78,12 @@ impl Object {
     ///
     fn render<'a>(&self, immutable_state: &'a ImmutableState, graphics: &mut Graphics<'a>) -> Result<(), Error>{
         let texture = immutable_state.textures().get_required_by_id(self.texture_id)?;
+        let (x, y) = graphics.get_view().get_world_to_view_transform().transform_point(self.position.x, self.position.y);
         let bounds = Bounds2::new(
-            self.position.x as f32,
-            self.position.y as f32,
-            (self.position.x + self.size.get_width()) as f32,
-            (self.position.y + self.size.get_height()) as f32
+            x,
+            x + self.size.get_width(),
+            y,
+            y + self.size.get_height(),
         );
         graphics.draw_sprite(texture, bounds)?;
         Ok(())
@@ -165,9 +164,13 @@ pub enum Error {
     Texture(ResourceError),
 
     ///
-    ///
+    /// A graphics error occurred
     ///
     Graphics(GraphicsError),
+
+    ///
+    /// An ECS error occurred
+    ///
     Ecs(EcsError),
 }
 

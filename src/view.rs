@@ -64,6 +64,14 @@ impl View {
         }
     }
 
+    pub fn update(&mut self, dx: f32, dy: f32, dz: i32) {
+        self.x += dx;
+        self.y += dy;
+        self.z += dz;
+        self.world_to_view_transform = Transform::world_to_view(self.x, self.y, self.zoom, self.direction);
+        self.view_to_world_transform = Transform::view_to_world(self.x, self.y, self.zoom, self.direction);
+    }
+
     pub fn get_z(&self) -> i32 {
         self.z
     }

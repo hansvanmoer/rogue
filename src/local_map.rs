@@ -1,4 +1,3 @@
-use std::any::Any;
 use log::debug;
 use serde::{Deserialize, Serialize};
 use crate::geometry::NonZeroDimensions3;
@@ -32,6 +31,11 @@ pub struct LocalMap<'a> {
     /// The tiles
     ///
     tiles: Vec<Tile>,
+
+    ///
+    /// The tile size of the map
+    ///
+    tile_size: f32,
 }
 
 impl<'a> LocalMap<'a> {
@@ -42,6 +46,7 @@ impl<'a> LocalMap<'a> {
         let bounds = Bounds::new(size);
         let tile_set = state.tile_sets().get_required_by_name(tile_set_name).map_err(|e| Error::TileSetNotFound(e))?;
         let texture_set = state.texture_sets().get_required_by_name(tile_set.get_texture_set_name()).map_err(|e| Error::TextureSetNotFound(e))?;
+        let tile_size = *texture_set.get_tile_size().get_width() as f32;
 
         // note that tile sets can not be constructed empty, so there is always a tile with index 0
         let tiles= vec![Tile {type_index: 0}; bounds.index_bound()];
@@ -50,6 +55,7 @@ impl<'a> LocalMap<'a> {
             tile_set,
             texture_set,
             tiles,
+            tile_size,
         })
     }
 
@@ -63,11 +69,14 @@ impl<'a> LocalMap<'a> {
         debug!("Using texture set {}", tile_set.get_texture_set_name());
         let texture_set = state.texture_sets().get_required_by_name(tile_set.get_texture_set_name()).map_err(|e| Error::TextureSetNotFound(e))?;
         let tiles = Self::validate_tiles(&data.tiles, &bounds, tile_set)?;
+        let tile_size = *texture_set.get_tile_size().get_width() as f32;
+
         Ok(LocalMap {
             bounds,
             tile_set,
             texture_set,
             tiles,
+            tile_size,
         })
     }
 
@@ -100,6 +109,13 @@ impl<'a> LocalMap<'a> {
         let tiles = self.tiles[start .. end].iter().map(|tile | self.tile_set.get_texture_index(tile.type_index));
         graphics.draw_tiles(self.texture_set, tiles, self.bounds.x)?;
         Ok(())
+    }
+
+    ///
+    /// Returns the tile size
+    ///
+    pub fn tile_size(&self) -> f32 {
+        self.tile_size
     }
 }
 

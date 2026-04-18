@@ -2,28 +2,63 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use serde::Deserialize;
 use crate::configuration::{Error as ConfigurationError};
+use crate::ecs::{Component, EntityId};
 use crate::geometry::NonZeroDimensions3;
 use crate::resource::{Error as ResourceError, ResourceDescriptor, ResourceId, ResourceIdMap, ResourceMap};
 use crate::sparse_array::SparseArray;
 use crate::texture::Texture;
 use crate::validation::{non_empty_string, validate_field, validate_optional_vec_field, Error as ValidationError, ValidateOwned};
 
-pub struct Buildings<'a> {
-    buildings: SparseArray<Building<'a>>,
-    structures: SparseArray<Structure<'a>>,
+///
+/// All extant buildings
+///
+pub struct Buildings {
+    ///
+    /// The list of buildings
+    ///
+    buildings: SparseArray<Building>,
 }
 
-struct Building<'a> {
-    template: &'a BuildingTemplate,
-    style: &'a BuildingStyle,
-    structures: Vec<usize>,
+///
+/// A building
+///
+struct Building {
+    ///
+    /// The template of the building
+    ///
+    template: ResourceId,
+
+    ///
+    /// The style of the building
+    ///
+    style: ResourceId,
+
+    ///
+    /// The list of structure entities that make up the building
+    /// Note that this list is not necessarily up to date
+    ///
+    structures: Vec<EntityId>,
 }
 
-struct Structure<'a> {
-    component: &'a BuildingComponent,
-    x: i32,
-    y: i32,
-    z: i32,
+///
+/// A structural part of the building
+///
+struct Structure {
+    ///
+    /// The id of the component
+    ///
+    component_id: ResourceId,
+
+    ///
+    /// The id of the building that contains this structure
+    ///
+    building_id: usize,
+}
+
+impl Component for Structure {
+    fn get_component_name() -> &'static str {
+        "building_component"
+    }
 }
 
 ///
@@ -217,8 +252,7 @@ impl<'a> BuildingTemplate {
     pub fn from_folder_path(path: &mut PathBuf, components: &ResourceMap<BuildingComponent>, styles: &ResourceMap<BuildingStyle>) -> Result<ResourceMap<Self>, Error> {
         TemplatesDescriptor::from_folder_path(path, &|resources, descriptor| {
             for template in descriptor.templates.iter() {
-                let name = template.name.clone();
-                let (default_style_id, default_style) = styles.get_required_entry_by_name(&template.default_style)?;
+                let (_, default_style) = styles.get_required_entry_by_name(&template.default_style)?;
                 let mut variable_ids = HashMap::new();
                 let mut variable_components = Vec::new();
                 for variable_component in template.variable_components.iter() {

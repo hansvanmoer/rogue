@@ -32,6 +32,8 @@ pub struct SubSystems {
     texture_creator: TextureCreator<WindowContext>,
 }
 
+const INCHES_PER_METER: f32 = 39.37008;
+
 impl SubSystems {
     ///
     /// Creates a new instance
@@ -63,6 +65,23 @@ impl SubSystems {
             canvas: RefCell::from(canvas),
             texture_creator,
         })
+    }
+
+    ///
+    /// The canvas size
+    ///
+    pub fn canvas_size(&self) -> (u32, u32) {
+        self.canvas.borrow().window().size()
+    }
+
+
+    ///
+    /// The number of pixels per meter
+    ///
+    pub fn get_pixels_per_meter(&self) -> Result<f32, Error> {
+        self.video.display_dpi(0)
+            .map_err(|err| Error::Sdl(format!("could not fetch display DPI {}", err)))
+            .map(|(dpi, _, _)| dpi * INCHES_PER_METER)
     }
 
     ///

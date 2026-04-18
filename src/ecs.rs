@@ -293,7 +293,11 @@ impl<'a, Q: Query<'a>, O: Eq + Ord> Query<'a> for SortedQuery<'a, Q, O> {
     type Item = Q::Item;
 
     fn get(&self, id: EntityId) -> Option<Self::Item> {
-        self.query.get(self.order[id].id)
+        if id < self.order.len() {
+            self.query.get(self.order[id].id)
+        } else {
+            None
+        }
     }
 
     fn max_amount(&self) -> usize {
